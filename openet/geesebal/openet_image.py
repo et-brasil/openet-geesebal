@@ -40,30 +40,44 @@ class Image():
             meteorology_source_inst='NASA/NLDAS/FORA0125_H002',
             meteorology_source_daily='IDAHO_EPSCOR/GRIDMET',
             elev_source='USGS/SRTMGL1_003',
-            ndvi_cold=ee.Number(5),
-            ndvi_hot=ee.Number(10),
-            lst_cold=ee.Number(20),
-            lst_hot=ee.Number(10),
+            ndvi_cold=5,
+            ndvi_hot=10,
+            lst_cold=20,
+            lst_hot=10,
             reflectance_type='SR',
-             **kwargs,
+            **kwargs,
             ):
         
         """Construct a generic GEESEBAL Image
+
         Parameters
         ----------
         image : ee.Image
             A "prepped" GEESEBAL input image.
-            Image must have bands: "ndvi" and "lst".
-            Image must have properties: 'system:id', 'system:index', and  'system:time_start'.
-            
-        ndvi_cold : ee.Number
-           NDVI Percentile value to determinate cold pixel
-        ndvi_hot : ee.Number
-           NDVI Percentile value to determinate hot pixel
-        lst_cold : ee.Number
-           LST Percentile value to determinate cold pixel
-        lst_hot : ee.Number
-           LST Percentile value to determinate hot pixel
+            Image must have bands:
+                ndvi, lai, savi, lst, emissivity, ndwi, and albedo.
+            Image must have properties:
+                'SOLAR_ZENITH_ANGLE', 'system:id', 'system:index', and
+                'system:time_start'.
+
+        meteorology_source_inst : str, optional
+            Instantaneous meteorology source collection ID.
+            TODO: Add detail about what needs to be in the this collection or
+              which collections are supported
+        meteorology_source_daily : str
+            Instantaneous meteorology source collection ID.
+            TODO: Add detail about what needs to be in the this collection or
+              which collections are supported
+        elev_source : str, optional
+            Elevation source image ID.
+        ndvi_cold : int, ee.Number, optional
+            NDVI Percentile value to determinate cold pixel
+        ndvi_hot : int, ee.Number, optional
+            NDVI Percentile value to determinate hot pixel
+        lst_cold : int, ee.Number, optional
+            LST Percentile value to determinate cold pixel
+        lst_hot : int, ee.Number, optional
+            LST Percentile value to determinate hot pixel
         
         Notes
         -----
@@ -71,12 +85,10 @@ class Image():
             
         """
         
-        self.image =image
-        #print(self.image.getInfo())
-        
-        #Copy system properties
+        self.image = image
+
+        # Copy system properties
         self._id = self.image.get('system:id')
-        
         self._index = self.image.get('system:index')
         self._time_start = self.image.get('system:time_start')
         self._properties = {
@@ -96,33 +108,29 @@ class Image():
 
         # Set server side date/time properties using the 'system:time_start'
         self._date = ee.Date(self._time_start)
-        self.year = ee.Number(self._date.get('year'))
+        self._year = ee.Number(self._date.get('year'))
         self._month = ee.Number(self._date.get('month'))
         self._start_date = ee.Date(utils.date_to_time_0utc(self._date))
         self._end_date = self._start_date.advance(1, 'day')
         self._doy = ee.Number(self._date.getRelative('day', 'year')).add(1).int()
         
-        self.zenith_angle=ee.Number(self.image.get("SOLAR_ZENITH_ANGLE"))
-        
-        self._cycle_day = self._start_date.difference(
-            ee.Date.fromYMD(1970, 1, 3), 'day').mod(8).add(1).int()
-        
+        self._zenith_angle=ee.Number(self.image.get("SOLAR_ZENITH_ANGLE"))
+
         # Model input parameters
-        self._et_reference_source=et_reference_source
-        self._et_reference_band=et_reference_band
-        self._et_reference_factor = et_reference_factor
+        # self._et_reference_source = et_reference_source
+        # self._et_reference_band = et_reference_band
+        # self._et_reference_factor = et_reference_factor
         self._meteorology_source_inst = meteorology_source_inst
-        self._meteorology_source_daily=meteorology_source_daily
-        self._ndvi_cold=ndvi_cold
-        self._ndvi_hot=ndvi_hot
-        self._lst_cold=lst_cold
-        self._lst_hot=lst_hot
-        self.elev_source=elev_source
-        #print(self.image.geometry())
-        self.geometry_image=img_geo
-                
+        self._meteorology_source_daily = meteorology_source_daily
+        # CGM - Do these need to be cast to ee Numbers?
+        self._ndvi_cold = ee.Number(ndvi_cold)
+        self._ndvi_hot = ee.Number(ndvi_hot)
+        self._lst_cold = ee.Number(lst_cold)
+        self._lst_hot = ee.Number(lst_hot)
+        self.elev_source = elev_source
+        self.geometry_image = img_geo
+
         self.proj = self.image.select(0).projection()
-        #print(self.proj)
         self.latlon = ee.Image.pixelLonLat().reproject(self.proj)
         self.coords = self.latlon.select(['longitude', 'latitude' ])
         
@@ -130,9 +138,7 @@ class Image():
         self.crs = image.projection().crs()
         self.transform = ee.List(ee.Dictionary(
             ee.Algorithms.Describe(image.projection())).get('transform'))
-        
-        #print(self.proj )
-        
+
     @classmethod
     def from_image_id(cls, image_id, **kwargs):
         """Constructs an GEESEBAL Image instance from an image ID
@@ -170,11 +176,11 @@ class Image():
         method = getattr(Image, method_name)
 
         return method(ee.Image(image_id), **kwargs)
-         
-    
+
     @classmethod
-    def from_landsat_c1_sr(cls, sr_image,geometry, cloudmask_args={}, **kwargs):
+    def from_landsat_c1_sr(cls, sr_image, geometry, cloudmask_args={}, **kwargs):
         """Returns a GEESEBAL Image instance from a Landsat Collection 1 SR image
+
         Parameters
         ----------
         sr_image : ee.Image, str
@@ -183,6 +189,7 @@ class Image():
             keyword arguments to pass through to cloud mask function
         kwargs : dict
             Keyword arguments to pass through to Image init function
+
         Returns
         -------
         Image
@@ -290,16 +297,17 @@ class Image():
 
         # Instantiate the class
         return cls(input_image, reflectance_type='SR',img_geo=geometry, **kwargs)
-    
+
+    # CGM - Is this used for anything?
     @classmethod
     def ndvi_calc(cls, sr_image):
         
         return ee.Image(sr_image).normalizedDifference(['B5','B4']).rename('ndvi')
-        
-        
+
     @classmethod #NOT ADAPTED YET <<-----
     def from_landsat_c2_sr(cls, sr_image, cloudmask_args={}, **kwargs):
         """Returns a GEESEBAL Image instance from a Landsat Collection 2 SR image
+
         Parameters
         ----------
         sr_image : ee.Image, str
@@ -308,9 +316,11 @@ class Image():
             keyword arguments to pass through to cloud mask function
         kwargs : dict
             Keyword arguments to pass through to Image init function
+
         Returns
         -------
         Image
+
         """
         sr_image = ee.Image(sr_image)
 
@@ -348,15 +358,22 @@ class Image():
         if 'snow_flag' not in cloudmask_args.keys():
             cloudmask_args['snow_flag'] = True
 
-        #cloud_mask = openet.core.common.landsat_c2_sr_cloud_mask(
-         #   sr_image, **cloudmask_args)
+        # cloud_mask = openet.core.common.landsat_c2_sr_cloud_mask(
+        #     sr_image, **cloudmask_args)
 
         # Build the input image
         # Don't compute LST since it is being provided
         input_image = ee.Image([
-            prep_image.select(['tir'], ['lst']),
-            # landsat.lst(prep_image),
             landsat.ndvi(prep_image),
+            landsat.lai(prep_image),
+            landsat.savi(prep_image),
+            landsat.lst(prep_image),
+            landsat.emissivity(prep_image),
+            landsat.ndwi(prep_image),
+            albedo
+            # prep_image.select(['tir'], ['lst']),
+            # landsat.lst(prep_image),
+            # landsat.ndvi(prep_image),
         ])
 
         # Apply the cloud mask and add properties
@@ -369,7 +386,7 @@ class Image():
         # Instantiate the class
         return cls(input_image, reflectance_type='SR', **kwargs)
             
-    def calculate(self,variables=['ndvi','lst','et','et_fraction']):
+    def calculate(self, variables=['ndvi', 'lst', 'et', 'et_fraction']):
         """Return a multiband image of calculated variables
         Parameters
         ----------
@@ -393,7 +410,7 @@ class Image():
 
         return ee.Image(output_images).set(self._properties)
 
-    def calculate_ndvi(self,variables=['ndvi']):
+    def calculate_ndvi(self, variables=['ndvi']):
         """Return a multiband image of calculated variables
         Parameters
         ----------
@@ -449,36 +466,38 @@ class Image():
    
     @lazy_property
     def et(self,):
-        
-        
-       et=model.et(image=self.image,
-                        ndvi=self.ndvi,
-                        ndwi=self.ndwi,
-                        lst=self.lst,
-                        albedo=self.albedo,
-                        lai=self.lai,                    
-                        meteo_inst_source= self._meteorology_source_inst,
-                        meteo_daily_source=self._meteorology_source_daily,
-                        elev_product=self.elev_source,
-                        ndvi_cold=self._ndvi_cold,
-                        ndvi_hot=self._ndvi_hot,
-                        lst_cold=self._lst_cold,
-                        lst_hot=self._lst_hot,
-                        emissivity=self.emissivity,
-                        savi=self.savi,
-                        time_start=self._time_start,
-                        zenith_angle=self.zenith_angle,
-                        geometry_image=self.geometry_image,
-                        crs=self.crs,
-                        transform=self.transform,
-                        coords=self.coords
-                        ).set(self._properties)          
-        
-       return et
+
+        et = model.et(image=self.image,
+                      ndvi=self.ndvi,
+                      ndwi=self.ndwi,
+                      lst=self.lst,
+                      albedo=self.albedo,
+                      lai=self.lai,
+                      meteo_inst_source=self._meteorology_source_inst,
+                      meteo_daily_source=self._meteorology_source_daily,
+                      elev_product=self.elev_source,
+                      ndvi_cold=self._ndvi_cold,
+                      ndvi_hot=self._ndvi_hot,
+                      lst_cold=self._lst_cold,
+                      lst_hot=self._lst_hot,
+                      emissivity=self.emissivity,
+                      savi=self.savi,
+                      time_start=self._time_start,
+                      zenith_angle=self._zenith_angle,
+                      geometry_image=self.geometry_image,
+                      crs=self.crs,
+                      transform=self.transform,
+                      coords=self.coords,
+                      )
+
+        return et.set(self._properties)
     
     @lazy_property
     def et_fraction(self):
-        
-        et_fr=model.et_fraction(self.image,self.et,self._et_reference_source,self._et_reference_band,self._et_reference_factor).set(self._properties)          
-        
-        return et_fr
+
+        et_fr = model.et_fraction(
+            self.image, self.et,
+            self._et_reference_source, self._et_reference_band,
+            self._et_reference_factor)
+
+        return et_fr.set(self._properties)
