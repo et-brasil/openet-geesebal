@@ -1,6 +1,5 @@
 import datetime
 import math
-import os
 import pprint
 import re
 
@@ -9,8 +8,6 @@ import ee
 from openet.geesebal import openet_landsat as landsat
 from openet.geesebal import model
 from openet.geesebal import utils
-
-# PROJECT_FOLDER = 'projects/et-brasil/assets/openet/geesebal/landsat'
 
 
 def lazy_property(fn):
@@ -54,10 +51,9 @@ class Image():
         image : ee.Image
             A "prepped" GEESEBAL input image.
             Image must have bands:
-                ndvi, lai, savi, lst, emissivity, ndwi, and albedo.
+                ndvi, lai, savi, lst, emissivity, ndwi, albedo
             Image must have properties:
-                'SOLAR_ZENITH_ANGLE', 'system:id', 'system:index', and
-                'system:time_start'.
+                SOLAR_ZENITH_ANGLE, system:id, system:index, system:time_start
 
         meteorology_source_inst : str, optional
             Instantaneous meteorology source collection ID.
@@ -392,6 +388,11 @@ class Image():
                 output_images.append(self.lst.float())
             elif v.lower() == 'ndvi':
                 output_images.append(self.ndvi.float())
+            # CGM - Calculate method must support the mask and time bands
+            elif v.lower() == 'mask':
+                output_images.append(self.mask)
+            elif v.lower() == 'time':
+                output_images.append(self.time)
             else:
                 raise ValueError('unsupported variable: {}'.format(v))
 
@@ -488,3 +489,52 @@ class Image():
             self._et_reference_factor)
 
         return et_fr.set(self._properties)
+
+    # @lazy_property
+    # def et_reference(self):
+    #     """Reference ET for the image date"""
+    #     if utils.is_number(self.et_reference_source):
+    #         # Interpret numbers as constant images
+    #         # CGM - Should we use the ee_types here instead?
+    #         #   i.e. ee.ee_types.isNumber(self.et_reference_source)
+    #         et_reference_img = ee.Image.constant(self.et_reference_source)
+    #     elif type(self.et_reference_source) is str:
+    #         # Assume a string source is an image collection ID (not an image ID)
+    #         et_reference_coll = ee.ImageCollection(self.et_reference_source)\
+    #             .filterDate(self._start_date, self._end_date)\
+    #             .select([self.et_reference_band])
+    #         et_reference_img = ee.Image(et_reference_coll.first())
+    #         if self.et_reference_resample in ['bilinear', 'bicubic']:
+    #             et_reference_img = et_reference_img\
+    #                 .resample(self.et_reference_resample)
+    #     else:
+    #         raise ValueError('unsupported et_reference_source: {}'.format(
+    #             self.et_reference_source))
+    #
+    #     if self.et_reference_factor:
+    #         et_reference_img = et_reference_img.multiply(self.et_reference_factor)
+    #
+    #     # Map ETr values directly to the input (i.e. Landsat) image pixels
+    #     # The benefit of this is the ETr image is now in the same crs as the
+    #     #   input image.  Not all models may want this though.
+    #     # Note, doing this will cause the reference ET to be cloud masked.
+    #     # CGM - Should the output band name match the input ETr band name?
+    #     return self.ndvi.multiply(0).add(et_reference_img)\
+    #         .rename(['et_reference']).set(self._properties)
+
+    # CGM - The mask band is currently needed for the time band
+    @lazy_property
+    def mask(self):
+        """Mask of all active pixels (based on the final et)"""
+        return self.et.multiply(0).add(1).updateMask(1) \
+            .rename(['mask']).set(self._properties).uint8()
+
+    # CGM - The image class must have a "time" method for the interpolation
+    # I'm not sure if it needs to be built from the active pixels mask
+    #   or could be built from the NDVI or QA band instead.
+    @lazy_property
+    def time(self):
+        """Return an image of the 0 UTC time (in milliseconds)"""
+        return self.mask \
+            .double().multiply(0).add(utils.date_to_time_0utc(self._date)) \
+            .rename(['time']).set(self._properties)
