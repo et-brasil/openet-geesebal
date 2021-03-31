@@ -1,24 +1,22 @@
 import copy
 import datetime
-import os
-
 import pprint
 
 from dateutil.relativedelta import *
 import ee
-import openet.core.interpolate
+import openet.core.interpolate as interpolate
 # TODO: import utils from openet.core
 # import openet.core.utils as utils
 
 from openet.geesebal import utils
 from openet.geesebal.openet_image import Image
-# from openet.geesebal import openet_landsat as landsat
 # Importing to get version number, is there a better way?
 import openet.geesebal
 
 
 def lazy_property(fn):
     """Decorator that makes a property lazy-evaluated
+
     https://stevenloria.com/lazy-properties/
     """
     attr_name = '_lazy_' + fn.__name__
@@ -40,18 +38,15 @@ class Collection():
             start_date,
             end_date,
             geometry,
-            variables=['et'],
-            cloud_cover_max=30,
-            et_reference_source=None,
-            et_reference_band=None,
-            et_reference_factor=None,
-            et_reference_resample=None,
+            variables=None,
+            cloud_cover_max=70,
             filter_args=None,
             model_args=None,
+            # interp_args=None
             # model_args={'et_reference_source': 'IDAHO_EPSCOR/GRIDMET',
-            #             'et_reference_band': 'etr',
-            #             'et_reference_factor': 0.85,
-            #             'et_reference_resample': 'bilinear},
+            #             'et_reference_band': 'eto',
+            #             'et_reference_factor': 0.85
+            #             'et_reference_resample': 'nearest},
             # **kwargs
         ):
         """Earth Engine based GEESEBAL Image Collection
@@ -75,18 +70,6 @@ class Collection():
             Maximum cloud cover percentage (the default is 70%).
                 - Landsat TOA: CLOUD_COVER_LAND
                 - Landsat SR: CLOUD_COVER_LAND
-        et_reference_source : str, float, optional
-            Reference ET source (the default is None).  Source must
-            be set here or in model args to interpolate ET, ETf, or ETr.
-        et_reference_band : str, optional
-            Reference ET band name (the default is None).  Band must
-            be set here or in model args to interpolate ET, ETf, or ETr.
-        et_reference_factor : float, None, optional
-            Reference ET scaling factor.  The default is None which is
-            equivalent to 1.0 (or no scaling).
-        et_reference_resample : {'nearest', 'bilinear', 'bicubic', None}, optional
-            Reference ET resampling.  The default is None which is equivalent
-            to nearest neighbor resampling.
         filter_args : dict
             Image collection filter keyword arguments (the default is None).
             Organize filter arguments as a nested dictionary with the primary
@@ -94,6 +77,8 @@ class Collection():
         model_args : dict
             Model Image initialization keyword arguments (the default is None).
             Dictionary will be passed through to model Image init.
+            ET reference parameters will need to be passed in via model_args
+              if computing et_fraction or et_reference.
 
         """
         self.collections = collections
@@ -112,36 +97,51 @@ class Collection():
             self.filter_args = filter_args
         else:
             self.filter_args = {}
+        # if interp_args is not None:
+        #     self.interp_args = interp_args
+        # else:
+        #     self.interp_args = {}
 
-        # Reference ET parameters
-        self.et_reference_source = et_reference_source
-        self.et_reference_band = et_reference_band
-        self.et_reference_factor = et_reference_factor
-        self.et_reference_resample = et_reference_resample
+        # # Reference ET parameters
+        # self.et_reference_source = et_reference_source
+        # self.et_reference_band = et_reference_band
+        # self.et_reference_factor = et_reference_factor
+        # self.et_reference_resample = et_reference_resample
+        #
+        # # Check reference ET parameters
+        # if et_reference_factor and not utils.is_number(et_reference_factor):
+        #     raise ValueError('et_reference_factor must be a number')
+        # if et_reference_factor and et_reference_factor < 0:
+        #     raise ValueError(
+        #         'et_reference_factor must be greater than zero')
+        # et_reference_resample_methods = ['nearest', 'bilinear', 'bicubic']
+        # if (et_reference_resample and
+        #         et_reference_resample.lower() not in et_reference_resample_methods):
+        #     raise ValueError('unsupported et_reference_resample method')
+
+        # # Set/update the reference ET parameters in model_args if they were set in init()
+        # if self.et_reference_source:
+        #     self.model_args['et_reference_source'] = self.et_reference_source
+        # if self.et_reference_band:
+        #     self.model_args['et_reference_band'] = self.et_reference_band
+        # if self.et_reference_factor:
+        #     self.model_args['et_reference_factor'] = self.et_reference_factor
+        # if self.et_reference_resample:
+        #     self.model_args['et_reference_resample'] = self.et_reference_resample
 
         # Check reference ET parameters
-        if et_reference_factor and not utils.is_number(et_reference_factor):
-            raise ValueError('et_reference_factor must be a number')
-        if et_reference_factor and self.et_reference_factor < 0:
-            raise ValueError('et_reference_factor must be greater than zero')
-        et_reference_resample_methods = ['nearest', 'bilinear', 'bicubic']
-        if (et_reference_resample and
-                et_reference_resample.lower() not in et_reference_resample_methods):
+        # CGM - These would probably be cleaner as try/excepts
+        if (model_args and 'et_reference_factor' in model_args.keys() and
+                model_args['et_reference_factor']):
+            if not utils.is_number(model_args['et_reference_factor']):
+                raise ValueError('et_reference_factor must be a number')
+            if model_args['et_reference_factor'] < 0:
+                raise ValueError('et_reference_factor must be greater than zero')
+        resample_methods = ['nearest', 'bilinear', 'bicubic']
+        if (model_args and 'et_reference_resample' in model_args.keys() and
+                model_args['et_reference_resample'] and
+                model_args['et_reference_resample'].lower() not in resample_methods):
             raise ValueError('unsupported et_reference_resample method')
-
-        # Set/update the reference ET parameters in model_args if they were set in init()
-        if self.et_reference_source:
-            self.model_args['et_reference_source'] = self.et_reference_source
-        if self.et_reference_band:
-            self.model_args['et_reference_band'] = self.et_reference_band
-        if self.et_reference_factor:
-            self.model_args['et_reference_factor'] = self.et_reference_factor
-        if self.et_reference_resample:
-            self.model_args['et_reference_resample'] = self.et_reference_resample
-
-        # Model specific variables that can be interpolated to a daily timestep
-        # CGM - Should this be specified in the interpolation method instead?
-        self._interp_vars = ['ndvi', 'et_fraction']
 
         self._landsat_c2_sr_collections = [
             'LANDSAT/LC08/C02/T1_L2',
@@ -155,14 +155,6 @@ class Collection():
             'LANDSAT/LT05/C01/T1_SR',
             'LANDSAT/LT04/C01/T1_SR',
         ]
-        # self._landsat_c1_toa_collections = [
-        #     'LANDSAT/LC08/C01/T1_RT_TOA',
-        #     'LANDSAT/LE07/C01/T1_RT_TOA',
-        #     'LANDSAT/LC08/C01/T1_TOA',
-        #     'LANDSAT/LE07/C01/T1_TOA',
-        #     'LANDSAT/LT05/C01/T1_TOA',
-        #     'LANDSAT/LT04/C01/T1_TOA',
-        # ]
 
         # If collections is a string, place in a list
         if type(self.collections) is str:
@@ -170,9 +162,8 @@ class Collection():
 
         # Check that collection IDs are supported
         for coll_id in self.collections:
-            if (coll_id not in self._landsat_c2_sr_collections and
-                    coll_id not in self._landsat_c1_sr_collections):
-                #     coll_id not in self._landsat_c1_toa_collections):
+            if (coll_id not in self._landsat_c1_sr_collections and
+                    coll_id not in self._landsat_c2_sr_collections):
                 raise ValueError('unsupported collection: {}'.format(coll_id))
 
         # Check that collections don't have "duplicates"
@@ -224,6 +215,7 @@ class Collection():
 
     def _build(self, variables=None, start_date=None, end_date=None):
         """Build a merged model variable image collection
+
         Parameters
         ----------
         variables : list
@@ -234,13 +226,16 @@ class Collection():
             images for interpolation.
         end_date : str, optional
             Set an exclusive end_date that is different than the class end_date.
+
         Returns
         -------
         ee.ImageCollection
+
         Raises
         ------
         ValueError if collection IDs are invalid.
         ValueError if variables is not set here and in class init.
+
         """
         # Override the class parameters if necessary
         if not variables:
@@ -255,19 +250,14 @@ class Collection():
 
         # Build the variable image collection
         variable_coll = ee.ImageCollection([])
-        
         for coll_id in self.collections:
-            # TODO: Move to separate methods/functions for each collection type
+            # DEADBEEF - Move to separate methods/functions for each type
             if coll_id in self._landsat_c2_sr_collections:
-                input_coll = ee.ImageCollection(coll_id)\
-                    .filterDate(start_date, end_date)\
-                    .filterBounds(self.geometry)\
+                input_coll = ee.ImageCollection(coll_id) \
+                    .filterDate(start_date, end_date) \
+                    .filterBounds(self.geometry) \
                     .filterMetadata('CLOUD_COVER_LAND', 'less_than',
-                                    self.cloud_cover_max)\
-                    .filterMetadata('CLOUD_COVER_LAND', 'greater_than', -0.5)
-
-                # TODO: Check if PROCESSING_LEVEL needs to be filtered on
-                #     .filterMetadata('PROCESSING_LEVEL', 'equals', 'L2SP')
+                                    self.cloud_cover_max)
 
                 # TODO: Need to come up with a system for applying
                 #   generic filter arguments to the collections
@@ -280,7 +270,7 @@ class Collection():
                         if filter_type.lower() == 'equals':
                             input_coll = input_coll.filter(ee.Filter.equals(**f))
 
-                # TODO: Check if these bad images are in collection 2
+                # TODO: Check if these images in are collection 2
                 # Time filters are to remove bad (L5) and pre-op (L8) images
                 if 'LT05' in coll_id:
                     input_coll = input_coll.filter(ee.Filter.lt(
@@ -298,13 +288,12 @@ class Collection():
                     ee.ImageCollection(input_coll.map(compute_lsr)))
 
             elif coll_id in self._landsat_c1_sr_collections:
-     
-                input_coll = ee.ImageCollection(coll_id)\
-                    .filterDate(start_date, end_date)\
-                    .filterBounds(self.geometry)\
+                input_coll = ee.ImageCollection(coll_id) \
+                    .filterDate(start_date, end_date) \
+                    .filterBounds(self.geometry) \
                     .filterMetadata('CLOUD_COVER_LAND', 'less_than',
-                                    self.cloud_cover_max)\
-                    .filterMetadata('CLOUD_COVER_LAND', 'greater_than', -0.5)
+                                    self.cloud_cover_max)
+
                 # TODO: Need to come up with a system for applying
                 #   generic filter arguments to the collections
                 if coll_id in self.filter_args.keys():
@@ -315,7 +304,7 @@ class Collection():
                             continue
                         if filter_type.lower() == 'equals':
                             input_coll = input_coll.filter(ee.Filter.equals(**f))
-                
+
                 # Time filters are to remove bad (L5) and pre-op (L8) images
                 if 'LT05' in coll_id:
                     input_coll = input_coll.filter(ee.Filter.lt(
@@ -327,18 +316,18 @@ class Collection():
                 def compute_lsr(image):
                     model_obj = Image.from_landsat_c1_sr(
                         sr_image=ee.Image(image), **self.model_args)
-                    return model_obj.calculate()
+                    return model_obj.calculate(variables)
 
-                variable_coll = ee.ImageCollection(input_coll.map(compute_lsr))
+                variable_coll = variable_coll.merge(
+                    ee.ImageCollection(input_coll.map(compute_lsr)))
 
             # elif coll_id in self._landsat_c1_toa_collections:
-            #     input_coll = ee.ImageCollection(coll_id)\
-            #         .filterDate(start_date, end_date)\
-            #         .filterBounds(self.geometry)\
-            #         .filterMetadata('DATA_TYPE', 'equals', 'L1TP')\
+            #     input_coll = ee.ImageCollection(coll_id) \
+            #         .filterDate(start_date, end_date) \
+            #         .filterBounds(self.geometry) \
+            #         .filterMetadata('DATA_TYPE', 'equals', 'L1TP') \
             #         .filterMetadata('CLOUD_COVER_LAND', 'less_than',
-            #                         self.cloud_cover_max)\
-            #         .filterMetadata('CLOUD_COVER_LAND', 'greater_than', -0.5)
+            #                         self.cloud_cover_max)
             #
             #     # TODO: Need to come up with a system for applying
             #     #   generic filter arguments to the collections
@@ -351,7 +340,6 @@ class Collection():
             #             if filter_type.lower() == 'equals':
             #                 input_coll = input_coll.filter(ee.Filter.equals(**f))
             #
-            #     # TODO: Check if these bad images are in collection 1 SR
             #     # Time filters are to remove bad (L5) and pre-op (L8) images
             #     if 'LT05' in coll_id:
             #         input_coll = input_coll.filter(ee.Filter.lt(
@@ -368,6 +356,7 @@ class Collection():
             #     variable_coll = variable_coll.merge(
             #         ee.ImageCollection(input_coll.map(compute_ltoa)))
 
+
             else:
                 raise ValueError('unsupported collection: {}'.format(coll_id))
 
@@ -375,18 +364,22 @@ class Collection():
 
     def overpass(self, variables=None):
         """Return a collection of computed values for the overpass images
+
         Parameters
         ----------
         variables : list, optional
             List of variables that will be returned in the Image Collection.
             If variables is not set here it must be specified in the class
             instantiation call.
+
         Returns
         -------
         ee.ImageCollection
+
         Raises
         ------
         ValueError
+
         """
         # Does it make sense to use the class variable list if not set?
         if not variables:
@@ -398,8 +391,10 @@ class Collection():
         return self._build(variables=variables)
 
     def interpolate(self, variables=None, t_interval='custom',
-                    interp_method='linear', interp_days=32, **kwargs):
+                    interp_method='linear', interp_days=32,
+                    **kwargs):
         """
+
         Parameters
         ----------
         variables : list, optional
@@ -415,19 +410,21 @@ class Collection():
             Number of extra days before the start date and after the end date
             to include in the interpolation calculation. (the default is 32).
         kwargs : dict, optional
+
         Returns
         -------
         ee.ImageCollection
+
         Raises
         ------
-        ValueError for unsupported input parameters
-        ValueError for negative interp_days values
-        TypeError for non-integer interp_days
+        ValueError
+
         Notes
         -----
         Not all variables can be interpolated to new time steps.
-        Variables like reference ET are simply summed whereas ET fraction is
-            computed from the interpolated/aggregated values.
+        Variables like ETr are simply summed whereas ETf is computed from the
+        interpolated/aggregated values.
+
         """
         # Check that the input parameters are valid
         if t_interval.lower() not in ['daily', 'monthly', 'annual', 'custom']:
@@ -479,68 +476,85 @@ class Collection():
         # Update model_args if reference ET parameters were passed to interpolate
         # Intentionally using model_args (instead of self.et_reference_source, etc.) in
         #   this function since model_args is passed to Image class in _build()
-        # if 'et' in variables or 'et_reference' in variables:
-        if ('et_reference_source' in kwargs.keys() and \
-                kwargs['et_reference_source'] is not None):
-            self.model_args['et_reference_source'] = kwargs['et_reference_source']
-        if ('et_reference_band' in kwargs.keys() and \
-                kwargs['et_reference_band'] is not None):
-            self.model_args['et_reference_band'] = kwargs['et_reference_band']
-        if ('et_reference_factor' in kwargs.keys() and \
-                kwargs['et_reference_factor'] is not None):
-            self.model_args['et_reference_factor'] = kwargs['et_reference_factor']
-        if ('et_reference_resample' in kwargs.keys() and \
-                kwargs['et_reference_resample'] is not None):
-            self.model_args['et_reference_resample'] = kwargs['et_reference_resample']
+        if 'et_reference' in variables or 'et_fraction' in variables:
+            if ('et_reference_source' in kwargs.keys() and
+                    kwargs['et_reference_source'] is not None):
+                self.model_args['et_reference_source'] = kwargs['et_reference_source']
+            if ('et_reference_band' in kwargs.keys() and
+                    kwargs['et_reference_band'] is not None):
+                self.model_args['et_reference_band'] = kwargs['et_reference_band']
+            if ('et_reference_factor' in kwargs.keys() and
+                    kwargs['et_reference_factor'] is not None):
+                self.model_args['et_reference_factor'] = kwargs['et_reference_factor']
+                self.model_args['et_reference_band'] = kwargs['et_reference_band']
+            # CGM - Resampling is not working correctly so commenting out for now
+            # if ('et_reference_resample' in kwargs.keys() and
+            #         kwargs['et_reference_resample'] is not None):
+            #     self.model_args['et_reference_resample'] = kwargs['et_reference_resample']
 
-        # Check that all reference ET parameters were set
-        # print(self.model_args)
-        for et_reference_param in ['et_reference_source', 'et_reference_band',
-                                   'et_reference_factor']:
-            if et_reference_param not in self.model_args.keys():
-                raise ValueError('{} was not set'.format(et_reference_param))
-            elif not self.model_args[et_reference_param]:
-                raise ValueError('{} was not set'.format(et_reference_param))
+            # Check that all reference ET parameters were set
+            for et_reference_param in ['et_reference_source', 'et_reference_band',
+                                       'et_reference_factor']:
+                if (et_reference_param not in self.model_args.keys() or
+                        not self.model_args[et_reference_param]):
+                    raise ValueError('{} was not set'.format(et_reference_param))
 
-        if type(self.model_args['et_reference_source']) is str:
-            # Assume a string source is an single image collection ID
-            #   not an list of collection IDs or ee.ImageCollection
-            daily_et_ref_coll_id = self.model_args['et_reference_source']
-            daily_et_ref_coll = ee.ImageCollection(daily_et_ref_coll_id)\
-                .filterDate(start_date, end_date)\
-                .select([self.model_args['et_reference_band']], ['et_reference'])
-        # elif isinstance(self.model_args['et_reference_source'], computedobject.ComputedObject):
-        #     # Interpret computed objects as image collections
-        #     daily_et_ref_coll = self.model_args['et_reference_source'] \
-        #         .filterDate(self.start_date, self.end_date) \
-        #         .select([self.model_args['et_reference_band']])
-        else:
-            raise ValueError('unsupported et_reference_source: {}'.format(
-                self.model_args['et_reference_source']))
+            if type(self.model_args['et_reference_source']) is str:
+                # Assume a string source is an single image collection ID
+                #   not an list of collection IDs or ee.ImageCollection
+                daily_et_ref_coll_id = self.model_args['et_reference_source']
+                daily_et_ref_coll = ee.ImageCollection(daily_et_ref_coll_id) \
+                    .filterDate(start_date, end_date) \
+                    .select([self.model_args['et_reference_band']], ['et_reference'])
+            # elif isinstance(self.model_args['et_reference_source'], computedobject.ComputedObject):
+            #     # Interpret computed objects as image collections
+            #     daily_et_ref_coll = self.model_args['et_reference_source'] \
+            #         .filterDate(self.start_date, self.end_date) \
+            #         .select([self.model_args['et_reference_band']])
+            else:
+                raise ValueError('unsupported et_reference_source: {}'.format(
+                    self.model_args['et_reference_source']))
 
-        # Scale reference ET images (if necessary)
-        # CGM - Resampling is not working correctly so not including for now
-        if (self.model_args['et_reference_factor'] and
-                self.model_args['et_reference_factor'] != 1):
-            def et_reference_adjust(input_img):
-                return input_img \
-                    .multiply(self.model_args['et_reference_factor']) \
-                    .copyProperties(input_img) \
-                    .set({'system:time_start': input_img.get('system:time_start')})
+            # Scale reference ET images (if necessary)
+            # CGM - Resampling is not working correctly so not including for now
+            if (self.model_args['et_reference_factor'] and
+                     self.model_args['et_reference_factor'] != 1):
+                def et_reference_adjust(input_img):
+                    return input_img \
+                        .multiply(self.model_args['et_reference_factor']) \
+                        .set({'system:time_start': input_img.get('system:time_start')})
+                daily_et_ref_coll = daily_et_ref_coll.map(et_reference_adjust)
 
-            daily_et_ref_coll = daily_et_ref_coll.map(et_reference_adjust)
+        # Get the interpolation collection
+        # TODO: Add logic to try falling back on et_reference parameters
+        #   in model_args (if they are available)
+        if 'interp_source' not in kwargs.keys():
+            raise ValueError('interp_source was not set')
+        if 'interp_band' not in kwargs.keys():
+            raise ValueError('interp_band was not set')
+        # CGM - Resampling is not working correctly so commenting out for now
+        # if 'interp_resample' not in kwargs.keys():
+        #     raise ValueError('interp_resample was not set')
+
+        # Target collection needs to be filtered to the same date range as the
+        #   scene collection in order to normalize the scenes.
+        # It will be filtered again to the start/end when it is sent into
+        #   interpolate.daily()
+        daily_target_coll = ee.ImageCollection(kwargs['interp_source']) \
+            .filterDate(interp_start_date, interp_end_date) \
+            .select([kwargs['interp_band']])
 
         # Initialize variable list to only variables that can be interpolated
-        interp_vars = list(set(self._interp_vars) & set(variables))
+        interp_vars = list(set(['et']) & set(variables))
 
-        # To return ET, the ET fraction must be interpolated
-        if 'et' in variables and 'et_fraction' not in interp_vars:
-            interp_vars.append('et_fraction')
+        # To return ET, the ETf must be interpolated
+        if 'et_fraction' in variables and 'et' not in interp_vars:
+            interp_vars.append('et')
 
         # With the current interpolate.daily() function,
         #   something has to be interpolated in order to return et_reference
-        if 'et_reference' in variables and 'et_fraction' not in interp_vars:
-            interp_vars.append('et_fraction')
+        if 'et_reference' in variables and 'et' not in interp_vars:
+            interp_vars.append('et')
 
         # The time band is always needed for interpolation
         interp_vars.append('time')
@@ -557,7 +571,7 @@ class Collection():
 
         # For count, compute the composite/mosaic image for the mask band only
         if 'count' in variables:
-            aggregate_coll = openet.core.interpolate.aggregate_to_daily(
+            aggregate_coll = interpolate.aggregate_to_daily(
                 image_coll=scene_coll.select(['mask']),
                 start_date=start_date, end_date=end_date)
 
@@ -576,23 +590,52 @@ class Collection():
         if 'mask' in interp_vars:
             interp_vars.remove('mask')
 
-        # Interpolate to a daily time step
-        # NOTE: the daily function is not computing ET (ETf x ETr)
-        #   but is returning the target (ETr) band
-        daily_coll = openet.core.interpolate.daily(
-            target_coll=daily_et_ref_coll,
-            source_coll=scene_coll.select(interp_vars),
-            interp_method=interp_method,  interp_days=interp_days,
-        )
+        # CGM - It might be more efficient to join the target collection to the scenes
+        def normalize_et(img):
+            img_date = ee.Date(img.get('system:time_start')) \
+                .update(hour=0, minute=0, second=0)
+            img_date = ee.Date(img_date.millis().divide(1000).floor().multiply(1000))
+            target_img = ee.Image(daily_target_coll \
+                .filterDate(img_date, img_date.advance(1, 'day')).first())
 
-        # Compute ET from ET fraction and reference ET (if necessary)
-        # if 'et' in variables or 'et_fraction' in variables:
-        def compute_et(img):
-            """This function assumes reference ET and ET fraction are present"""
-            et_img = img.select(['et_fraction'])\
-                .multiply(img.select(['et_reference']))
-            return img.addBands(et_img.rename('et'))
-        daily_coll = daily_coll.map(compute_et)
+            # CGM - Resampling isn't working correctly, commenting out for now
+            # if kwargs['interp_resample'].lower() in ['bilinear', 'bicubic']:
+            #     target_img = target_img.resample(kwargs['interp_resample'])
+
+            et_norm_img = img.select(['et']).divide(target_img).rename(
+                ['et_norm'])
+
+            # Clamp the normalized ET image (et_fraction)
+            if 'et_fraction_max' in kwargs.keys():
+                et_norm_img = et_norm_img.min(float(kwargs['et_fraction_max']))
+            if 'et_fraction_min' in kwargs.keys():
+                et_norm_img = et_norm_img.max(float(kwargs['et_fraction_min']))
+            # if ('et_fraction_min' in kwargs.keys() and
+            #     'et_fraction_max' in kwargs.keys()):
+            #     et_norm_img = et_norm_img.clamp(
+            #         float(kwargs['et_fraction_min']),
+            #         float(kwargs['et_fraction_max']))
+
+            return img.addBands([
+                et_norm_img.double(), target_img.rename(['norm'])])
+
+        # The time band is always needed for interpolation
+        scene_coll = scene_coll \
+            .filterDate(interp_start_date, interp_end_date) \
+            .select(['et'] + ['time']) \
+            .map(normalize_et)
+
+        # Interpolate to a daily time step
+        # TODO: Get use_joins from kwargs
+        daily_coll = interpolate.daily(
+            target_coll=daily_target_coll.filterDate(start_date, end_date),
+            source_coll=scene_coll.select(['et_norm', 'time']),
+            interp_method=interp_method,  interp_days=interp_days,
+            # use_joins=use_joins,
+            compute_product=True,
+        )
+        # pprint.pprint(daily_coll.first().getInfo())
+        daily_coll = daily_coll.select(['et_norm_1'], ['et'])
 
         interp_properties = {
             'cloud_cover_max': self.cloud_cover_max,
@@ -606,6 +649,7 @@ class Collection():
 
         def aggregate_image(agg_start_date, agg_end_date, date_format):
             """Aggregate the daily images within the target date range
+
             Parameters
             ----------
             agg_start_date: str
@@ -614,20 +658,26 @@ class Collection():
                 End date (exclusive).
             date_format : str
                 Date format for system:index (uses EE JODA format).
+
             Returns
             -------
             ee.Image
+
             Notes
             -----
             Since this function takes multiple inputs it is being called
             for each time interval by separate mappable functions
+
             """
-            if 'et' in variables or 'et_fraction' in variables:
-                et_img = daily_coll.filterDate(agg_start_date, agg_end_date) \
-                    .select(['et']).sum()
+            # if 'et' in variables or 'et_fraction' in variables:
+            et_img = daily_coll.filterDate(agg_start_date, agg_end_date) \
+                .select(['et']).sum()
+
             if 'et_reference' in variables or 'et_fraction' in variables:
-                # et_reference_img = daily_et_ref_coll \
-                et_reference_img = daily_coll \
+                # Get reference ET from the original collection instead of from
+                #   the interpolated daily collection.
+                #   (this is different than the et_fraction models)
+                et_reference_img = daily_et_ref_coll\
                     .filterDate(agg_start_date, agg_end_date) \
                     .select(['et_reference']).sum()
 
@@ -637,11 +687,9 @@ class Collection():
             if 'et_reference' in variables:
                 image_list.append(et_reference_img.float())
             if 'et_fraction' in variables:
-                # Compute average et fraction over the aggregation period
-                image_list.append(
-                    et_img.divide(et_reference_img).rename(['et_fraction']).float())
+                etf_img = et_img.divide(et_reference_img).rename(['et_fraction'])
+                image_list.append(etf_img.float())
             if 'ndvi' in variables:
-                # Compute average ndvi over the aggregation period
                 ndvi_img = daily_coll \
                     .filterDate(agg_start_date, agg_end_date) \
                     .mean().select(['ndvi']).float()
@@ -649,7 +697,7 @@ class Collection():
             if 'count' in variables:
                 count_img = aggregate_coll \
                     .filterDate(agg_start_date, agg_end_date) \
-                    .select(['mask']).count().rename('count').uint8()
+                    .select(['mask']).sum().rename('count').uint8()
                 image_list.append(count_img)
 
             return ee.Image(image_list) \
@@ -715,13 +763,15 @@ class Collection():
 
     def get_image_ids(self):
         """Return image IDs of the input images
+
         Returns
         -------
         list
-        Notes
-        -----
-        This image list is based on the collection start and end dates and may
-        not include all of the images used for interpolation.
+
         """
-        return sorted(list(self._build(variables=['ndvi'])\
+        # CGM - This doesn't return the extra images used for interpolation
+        return sorted(list(self._build(variables=['ndvi']) \
             .aggregate_array('image_id').getInfo()))
+
+        # Strip merge indices (this works for Landsat and Sentinel image IDs
+        # return sorted(['_'.join(x.split('_')[-3:]) for x in output])
