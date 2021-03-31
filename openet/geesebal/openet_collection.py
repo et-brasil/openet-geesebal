@@ -265,8 +265,7 @@ class Collection():
                     .filterMetadata('CLOUD_COVER_LAND', 'less_than',
                                     self.cloud_cover_max)\
                     .filterMetadata('CLOUD_COVER_LAND', 'greater_than', -0.5)
-                    
-               
+
                 # TODO: Check if PROCESSING_LEVEL needs to be filtered on
                 #     .filterMetadata('PROCESSING_LEVEL', 'equals', 'L2SP')
 
@@ -324,16 +323,11 @@ class Collection():
                 elif 'LC08' in coll_id:
                     input_coll = input_coll.filter(ee.Filter.gt(
                         'system:time_start', ee.Date('2013-03-24').millis()))
-                    
- 
+
                 def compute_lsr(image):
-                    #model_obj=Image.ndvi_calc(ee.Image(image))
                     model_obj = Image.from_landsat_c1_sr(
-                        sr_image=ee.Image(image),
-                        geometry=ee.Image(image).geometry(),
-                        **self.model_args)
+                        sr_image=ee.Image(image), **self.model_args)
                     return model_obj.calculate()
-                    return 
 
                 variable_coll = ee.ImageCollection(input_coll.map(compute_lsr))
 

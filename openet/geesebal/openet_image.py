@@ -31,8 +31,7 @@ class Image():
     """Google Earth Engine SEBAL - GEESEBAL for Landsat image"""
     
     def __init__(
-            
-            self, image, img_geo,
+            self, image,
             et_reference_source='IDAHO_EPSCOR/GRIDMET',
             et_reference_band='eto',
             et_reference_factor=0.85,
@@ -114,21 +113,22 @@ class Image():
         self._end_date = self._start_date.advance(1, 'day')
         self._doy = ee.Number(self._date.getRelative('day', 'year')).add(1).int()
         
-        self._zenith_angle=ee.Number(self.image.get("SOLAR_ZENITH_ANGLE"))
+        self._zenith_angle = ee.Number(self.image.get("SOLAR_ZENITH_ANGLE"))
 
         # Model input parameters
-        # self._et_reference_source = et_reference_source
-        # self._et_reference_band = et_reference_band
-        # self._et_reference_factor = et_reference_factor
+        self._et_reference_source = et_reference_source
+        self._et_reference_band = et_reference_band
+        self._et_reference_factor = et_reference_factor
         self._meteorology_source_inst = meteorology_source_inst
         self._meteorology_source_daily = meteorology_source_daily
-        # CGM - Do these need to be cast to ee Numbers?
+        # CGM - Do these need to be cast to ee Numbers or will the ET function
+        #   work if they are integers?
         self._ndvi_cold = ee.Number(ndvi_cold)
         self._ndvi_hot = ee.Number(ndvi_hot)
         self._lst_cold = ee.Number(lst_cold)
         self._lst_hot = ee.Number(lst_hot)
         self.elev_source = elev_source
-        self.geometry_image = img_geo
+        self.geometry = self.image.select(0).geometry()
 
         self.proj = self.image.select(0).projection()
         self.latlon = ee.Image.pixelLonLat().reproject(self.proj)
@@ -178,7 +178,7 @@ class Image():
         return method(ee.Image(image_id), **kwargs)
 
     @classmethod
-    def from_landsat_c1_sr(cls, sr_image, geometry, cloudmask_args={}, **kwargs):
+    def from_landsat_c1_sr(cls, sr_image, cloudmask_args={}, **kwargs):
         """Returns a GEESEBAL Image instance from a Landsat Collection 1 SR image
 
         Parameters
@@ -296,13 +296,7 @@ class Image():
             })
 
         # Instantiate the class
-        return cls(input_image, reflectance_type='SR',img_geo=geometry, **kwargs)
-
-    # CGM - Is this used for anything?
-    @classmethod
-    def ndvi_calc(cls, sr_image):
-        
-        return ee.Image(sr_image).normalizedDifference(['B5','B4']).rename('ndvi')
+        return cls(input_image, reflectance_type='SR', **kwargs)
 
     @classmethod #NOT ADAPTED YET <<-----
     def from_landsat_c2_sr(cls, sr_image, cloudmask_args={}, **kwargs):
@@ -364,16 +358,9 @@ class Image():
         # Build the input image
         # Don't compute LST since it is being provided
         input_image = ee.Image([
-            landsat.ndvi(prep_image),
-            landsat.lai(prep_image),
-            landsat.savi(prep_image),
+            prep_image.select(['tir'], ['lst']),
             landsat.lst(prep_image),
-            landsat.emissivity(prep_image),
-            landsat.ndwi(prep_image),
-            albedo
-            # prep_image.select(['tir'], ['lst']),
-            # landsat.lst(prep_image),
-            # landsat.ndvi(prep_image),
+            landsat.ndvi(prep_image),
         ])
 
         # Apply the cloud mask and add properties
@@ -484,7 +471,7 @@ class Image():
                       savi=self.savi,
                       time_start=self._time_start,
                       zenith_angle=self._zenith_angle,
-                      geometry_image=self.geometry_image,
+                      geometry_image=self.geometry,
                       crs=self.crs,
                       transform=self.transform,
                       coords=self.coords,
