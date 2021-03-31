@@ -1,11 +1,10 @@
 import ee
-import math
-from openet-geesebal.geesebal import utils
+
 
 def ndvi(landsat_image):
     
     return ee.Image(landsat_image).normalizedDifference(['nir', 'red'])\
-        .rename(['ndvi']);
+        .rename(['ndvi'])
         
 def fipar(landsat_image):
 
@@ -22,7 +21,7 @@ def lai(landsat_image):
         .rename('lai')
 
 def ndwi(landsat_image):
-    return ee.Image(landsat_image).normalizedDifference(['green', 'nir']).rename('ndwi');     
+    return ee.Image(landsat_image).normalizedDifference(['green', 'nir']).rename('ndwi')
      
     
 def emissivity(landsat_image):
@@ -32,8 +31,8 @@ def emissivity(landsat_image):
     
     e_0 = landsat_image.expression(
       '0.95 + 0.01 * LAI',{
-        'LAI': lai_img});
-    e_0 = e_0.where(lai_img.gt(3), 0.98).rename('emissivity');
+        'LAI': lai_img})
+    e_0 = e_0.where(lai_img.gt(3), 0.98).rename('emissivity')
     
     return e_0
 
@@ -45,22 +44,22 @@ def lst(landsat_image):
     
     emissivity_img=emissivity(landsat_image)
         
-    emissivity_img = emissivity_img.where(ndvi_img.lt(0), 0.985).rename('emissivity');
-    emissivity_img = emissivity_img.where(ndvi_img.lt(0), 0.985).rename('emissivity');
+    emissivity_img = emissivity_img.where(ndvi_img.lt(0), 0.985).rename('emissivity')
+    emissivity_img = emissivity_img.where(ndvi_img.lt(0), 0.985).rename('emissivity')
     
     #Narrow band transmissivity
     e_NB = landsat_image.expression(
-      '0.97 + (0.0033 * LAI)',{'LAI': lai_img});
-    e_NB = e_NB.where(lai_img.gt(3), 0.98).rename('e_NB');
+      '0.97 + (0.0033 * LAI)',{'LAI': lai_img})
+    e_NB = e_NB.where(lai_img.gt(3), 0.98).rename('e_NB')
     
     #Water and Snow filter
-    e_NB = e_NB.where(ndvi_img.lt(0), 0.99).rename('e_NB');
-    e_NB = e_NB.where(ndvi_img.lt(0), 0.99).rename('e_NB');
+    e_NB = e_NB.where(ndvi_img.lt(0), 0.99).rename('e_NB')
+    e_NB = e_NB.where(ndvi_img.lt(0), 0.99).rename('e_NB')
 
-    log_eNB = e_NB.log();   
+    log_eNB = e_NB.log()
     
     #Land Surface Temperature
-    comp_onda = ee.Number(1.115e-05);    
+    comp_onda = ee.Number(1.115e-05)
 
     lst = landsat_image.expression(
       'Tb / ( 1+ ( ( comp_onda * Tb / fator) * log_eNB))',{
@@ -68,7 +67,7 @@ def lst(landsat_image):
         'comp_onda': comp_onda,
         'log_eNB': log_eNB,
         'fator': ee.Number(1.438e-02),
-      }).rename('lst');
+      }).rename('lst')
     
     return lst
 
@@ -93,7 +92,7 @@ def albedo_l457(landsat_image):
             'B3' : landsat_image.select(['red']),
             'B4' : landsat_image.select(['nir']),
             'B5' : landsat_image.select(['swir1']),
-            'B7' : landsat_image.select(['swir2'])}).rename('albedo');
+            'B7' : landsat_image.select(['swir2'])}).rename('albedo')
     
     return albedo
 
@@ -107,7 +106,7 @@ def albedo_l8(landsat_image):
           'B4' : landsat_image.select(['red']),
           'B5' : landsat_image.select(['nir']),
           'B6' : landsat_image.select(['swir1']),
-          'B7' : landsat_image.select(['swir2']) }).rename('albedo');
+          'B7' : landsat_image.select(['swir2']) }).rename('albedo')
 
     return albedo
 
@@ -129,6 +128,3 @@ def cloud_mask_sr_l8(landsat_image):
     mask = c01.Or(c02).Or(c03)
 
     return mask    
-
-
- 

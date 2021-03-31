@@ -1,5 +1,7 @@
 import copy
 import datetime
+import os
+
 import pprint
 
 from dateutil.relativedelta import *
@@ -7,14 +9,12 @@ import ee
 import openet.core.interpolate
 # TODO: import utils from openet.core
 # import openet.core.utils as utils
-import os
 
-from openet-geesebal.geesebal import landsat
-
-from openet-geesebal.geesebal import utils
-from openet-geesebal.geesebal.image import Image
+from openet.geesebal import utils
+from openet.geesebal.openet_image import Image
+# from openet.geesebal import openet_landsat as landsat
 # Importing to get version number, is there a better way?
-import openet-geesebal.geesebal
+import openet.geesebal
 
 
 def lazy_property(fn):

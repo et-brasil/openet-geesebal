@@ -5,6 +5,7 @@ from time import sleep
 
 import ee
 
+
 def getinfo(ee_obj, n=4):
     """Make an exponential back off getInfo call on an Earth Engine object"""
     output = None

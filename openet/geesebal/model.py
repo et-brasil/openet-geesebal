@@ -1,8 +1,10 @@
 import math
-from openet-geesebal.geesebal import landsat
-from openet-geesebal.geesebal import utils
 
 import ee
+
+# from openet.geesebal import openet_landsat as landsat
+from openet.geesebal import utils
+
 
 def et(image,ndvi,ndwi,lst,albedo,lai,meteo_inst_source,meteo_daily_source,
        elev_product,ndvi_cold,ndvi_hot,lst_cold,lst_hot,emissivity,savi, time_start,zenith_angle,geometry_image,crs,transform,coords
@@ -1006,7 +1008,3 @@ def et_fraction(landsat_image,et,et_reference_source,et_reference_band,et_refere
     et_fraction=et.divide(et_reference_img).rename('et_fraction')  
     
     return et_fraction
-    
-    
-    
-    

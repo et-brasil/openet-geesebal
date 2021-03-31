@@ -1,19 +1,17 @@
 import datetime
+import math
+import os
 import pprint
 import re
-import os
-import math
 
 import ee
 
-from openet-geesebal.geesebal import landsat
-from openet-geesebal.geesebal import model
-from openet-geesebal.geesebal import utils
+from openet.geesebal import openet_landsat as landsat
+from openet.geesebal import model
+from openet.geesebal import utils
 
+# PROJECT_FOLDER = 'projects/et-brasil/assets/openet/geesebal/landsat'
 
-
-
-PROJECT_FOLDER = 'projects/et-brasil/assets/openet/geesebal/landsat'
 
 def lazy_property(fn):
     """Decorator that makes a property lazy-evaluated
@@ -27,6 +25,7 @@ def lazy_property(fn):
             setattr(self, attr_name, fn(self))
         return getattr(self, attr_name)
     return _lazy_property
+
 
 class Image():
     """Google Earth Engine SEBAL - GEESEBAL for Landsat image"""
@@ -483,4 +482,3 @@ class Image():
         et_fr=model.et_fraction(self.image,self.et,self._et_reference_source,self._et_reference_band,self._et_reference_factor).set(self._properties)          
         
         return et_fr
-        
