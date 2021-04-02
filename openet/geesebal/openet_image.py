@@ -119,10 +119,11 @@ class Image():
         self._meteorology_source_daily = meteorology_source_daily
         # CGM - Do these need to be cast to ee Numbers or will the ET function
         #   work if they are integers?
-        self._ndvi_cold = ee.Number(ndvi_cold)
-        self._ndvi_hot = ee.Number(ndvi_hot)
-        self._lst_cold = ee.Number(lst_cold)
-        self._lst_hot = ee.Number(lst_hot)
+        # LL - works fine without casting.
+        self._ndvi_cold = ndvi_cold
+        self._ndvi_hot = ndvi_hot
+        self._lst_cold = lst_cold
+        self._lst_hot = lst_hot
         self.elev_source = elev_source
         self.geometry = self.image.select(0).geometry()
 
@@ -253,6 +254,8 @@ class Image():
         cloud_mask=ee.Algorithms.If(spacecraft_id.compareTo(ee.String('LANDSAT_8')),
                                     landsat.cloud_mask_sr_l457(sr_image),landsat.cloud_mask_sr_l8(sr_image))
         
+        #calc sun elevation 
+        sun_elevation=ee.Number(90).subtract(ee.Number(sr_image.get('SOLAR_ZENITH_ANGLE')))        
     
         # k1 = ee.Dictionary({
         #     'LANDSAT_4': 'K1_CONSTANT_BAND_6',
@@ -288,7 +291,7 @@ class Image():
         input_image = input_image.set({'system:index': sr_image.get('system:index'),
                   'system:time_start': sr_image.get('system:time_start'),
                   'system:id': sr_image.get('system:id'),
-                  'SOLAR_ZENITH_ANGLE': sr_image.get('SOLAR_ZENITH_ANGLE')
+                  'SUN_ELEVATION':sun_elevation
             })
 
         # Instantiate the class
@@ -331,11 +334,46 @@ class Image():
         output_bands = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2',
                         'tir', 'QA_PIXEL']
 
-        prep_image = sr_image \
-            .select(input_bands.get(spacecraft_id), output_bands) \
-            .multiply([0.0000275, 0.0000275, 0.0000275, 0.0000275,
+        #prep_image = sr_image \
+            #.select(input_bands.get(spacecraft_id), output_bands) \
+            #.multiply([0.0000275, 0.0000275, 0.0000275, 0.0000275,
+              #         0.0000275, 0.0000275, 0.00341802, 1])\
+            #.add([-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 1])\
+        
+        def prep_image_l8(sr_image,input_bands,spacecraft_id):
+            
+             prep_image = sr_image\
+                .select(input_bands.get(spacecraft_id),['ultra_blue','blue', 'green', 'red', 'nir', 'swir1', 'swir2',
+                        'tir', 'QA_PIXEL'])\
+                .multiply([0.0000275,0.0000275, 0.0000275,0.0000275, 0.0000275,0.0000275, 0.0000275,0.00341802, 1])\
+                .add([-0.2,-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 1])\
+                
+             return prep_image
+        
+        def prep_image_l457(sr_image,input_bands,spacecraft_id):
+            
+            prep_image = sr_image\
+                .select(input_bands.get(spacecraft_id),['blue', 'green', 'red', 'nir', 'swir1', 'swir2',
+                        'tir', 'QA_PIXEL'])\
+                .multiply([0.0000275, 0.0000275, 0.0000275, 0.0000275,
                        0.0000275, 0.0000275, 0.00341802, 1])\
-            .add([-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 1])\
+                .add([-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 1])\
+                
+            return prep_image
+        
+        #compareTo return 0 if condition is true
+        #on the other hand, ee.Algorithms.If return 1 if condition is true
+        
+        prep_image=ee.Image(ee.Algorithms.If(spacecraft_id.compareTo(ee.String('LANDSAT_8')),
+                                    prep_image_l457(sr_image,input_bands,spacecraft_id),
+                                    prep_image_l8(sr_image,input_bands,spacecraft_id)))
+        
+        albedo=ee.Algorithms.If(spacecraft_id.compareTo(ee.String('LANDSAT_8')),
+                                landsat.albedo_l457(prep_image),landsat.albedo_l8(prep_image))
+        
+        cloud_mask=ee.Algorithms.If(spacecraft_id.compareTo(ee.String('LANDSAT_8')),
+                                    landsat.cloud_mask_C2_l457(sr_image),landsat.cloud_mask_C2_l8(sr_image))
+        
 
         # Default the cloudmask flags to True if they were not
         # Eventually these will probably all default to True in openet.core
@@ -347,7 +385,11 @@ class Image():
             cloudmask_args['shadow_flag'] = True
         if 'snow_flag' not in cloudmask_args.keys():
             cloudmask_args['snow_flag'] = True
-
+        
+        
+        # LL - I have no acess of this function. 
+        #We use a generic one located in the landsat folder.
+        
         # cloud_mask = openet.core.common.landsat_c2_sr_cloud_mask(
         #     sr_image, **cloudmask_args)
 
@@ -355,15 +397,21 @@ class Image():
         # Don't compute LST since it is being provided
         input_image = ee.Image([
             prep_image.select(['tir'], ['lst']),
-            landsat.lst(prep_image),
+            # landsat.lst(prep_image),
             landsat.ndvi(prep_image),
+            landsat.lai(prep_image),
+            landsat.savi(prep_image),
+            landsat.emissivity(prep_image),
+            landsat.ndwi(prep_image),
+            albedo
         ])
 
         # Apply the cloud mask and add properties
-        input_image = input_image\
+        input_image = input_image.updateMask(cloud_mask)\
             .set({'system:index': sr_image.get('system:index'),
                   'system:time_start': sr_image.get('system:time_start'),
                   'system:id': sr_image.get('system:id'),
+                  'SUN_ELEVATION': sr_image.get('SUN_ELEVATION')
             })
 
         # Instantiate the class
@@ -398,25 +446,6 @@ class Image():
 
         return ee.Image(output_images).set(self._properties)
 
-    def calculate_ndvi(self, variables=['ndvi']):
-        """Return a multiband image of calculated variables
-        Parameters
-        ----------
-        variables : list
-        Returns
-        -------
-        ee.Image
-        """
-        output_images = []
-        for v in variables:
-            if v.lower() == 'ndvi':
-                output_images.append(self.ndvi.float())
-
-            else:
-                raise ValueError('unsupported variable: {}'.format(v))
-
-        return ee.Image(output_images).set(self._properties)    
-         
     @lazy_property
     def ndvi(self,):
     
@@ -456,27 +485,27 @@ class Image():
     def et(self,):
 
         et = model.et(image=self.image,
-                      ndvi=self.ndvi,
-                      ndwi=self.ndwi,
-                      lst=self.lst,
-                      albedo=self.albedo,
-                      lai=self.lai,
-                      meteo_inst_source=self._meteorology_source_inst,
-                      meteo_daily_source=self._meteorology_source_daily,
-                      elev_product=self.elev_source,
-                      ndvi_cold=self._ndvi_cold,
-                      ndvi_hot=self._ndvi_hot,
-                      lst_cold=self._lst_cold,
-                      lst_hot=self._lst_hot,
-                      emissivity=self.emissivity,
-                      savi=self.savi,
-                      time_start=self._time_start,
-                      zenith_angle=self._zenith_angle,
-                      geometry_image=self.geometry,
-                      crs=self.crs,
-                      transform=self.transform,
-                      coords=self.coords,
-                      )
+                        ndvi=self.ndvi,
+                        ndwi=self.ndwi,
+                        lst=self.lst,
+                        albedo=self.albedo,
+                        lai=self.lai,                    
+                        meteo_inst_source= self._meteorology_source_inst,
+                        meteo_daily_source=self._meteorology_source_daily,
+                        elev_product=self.elev_source,
+                        ndvi_cold=self._ndvi_cold,
+                        ndvi_hot=self._ndvi_hot,
+                        lst_cold=self._lst_cold,
+                        lst_hot=self._lst_hot,
+                        emissivity=self.emissivity,
+                        savi=self.savi,
+                        time_start=self._time_start,
+                        geometry_image=self.geometry,
+                        crs=self.crs,
+                        transform=self.transform,
+                        coords=self.coords
+                        ).set(self._properties)          
+        
 
         return et.set(self._properties)
     
