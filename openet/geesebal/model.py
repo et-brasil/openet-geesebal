@@ -259,7 +259,7 @@ def cos_terrain(landsat_image,time_start,dem,hour,minuts,coords):
     return cos_zn
 
 
-def lst_correction(landsat_image,time_start,ndwi,lst,dem,tair,rh,sun_elevation,hour,minuts):
+def lst_correction(landsat_image,time_start,ndwi,lst,dem,tair,rh,sun_elevation,hour,minuts,coords):
     
     """Correct declivity and aspect effects from Land Surface Temperature"""    
 
