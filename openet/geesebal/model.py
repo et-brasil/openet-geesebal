@@ -7,7 +7,7 @@ from openet.geesebal import utils
 
 
 def et(image,ndvi,ndwi,lst,albedo,lai,meteo_inst_source,meteo_daily_source,
-       elev_product,ndvi_cold,ndvi_hot,lst_cold,lst_hot,emissivity,savi, time_start,zenith_angle,geometry_image,crs,transform,coords
+       elev_product,ndvi_cold,ndvi_hot,lst_cold,lst_hot,emissivity,savi, time_start,geometry_image,crs,transform,coords
        ):
 
            
@@ -37,29 +37,38 @@ def et(image,ndvi,ndwi,lst,albedo,lai,meteo_inst_source,meteo_daily_source,
             #SRTM DATA ELEVATION
             dem_product = ee.Image(elev_product)
             elev=dem_product.select('elevation')
-                        
-            lc_mask_img=lc_mask(image,_year,geometry_image)
-            #try:
-            #LAND SURFACE TEMPERATURE CORRECTION
-            lst_dem=lst_correction(image,time_start,ndwi,lst,elev,tair,rh,sun_elevation,_hour,_minuts)
             
-            #COLD PIXEL          
-            d_cold_pixel=cold_pixel(image,ndvi,ndwi,lst_dem,_year,p_top_NDVI,p_coldest_Ts,geometry_image,crs,transform,coords)
-            #T COLD
-            ts_cold_number = ee.Number(d_cold_pixel.get('temp'))
-            #NET RADIATION
-            rad_inst=radiation_inst(image,time_start,elev,lst,emissivity,albedo,tair,rh,rso_inst,sun_elevation)
-            #SOIL HEAT FLUX (G)
-            g_inst=soil_heat_flux(rad_inst,ndvi,albedo,lst_dem)
-            #DAILY NET RADIATION (FAO56)
-            rad_24h=radiation_24h(image,time_start,tmax,tmin,elev,rso24h)
-            #HOT PIXEL
-            d_hot_pixel=fexp_hot_pixel(image,time_start,ndvi,ndwi,lst_dem,rad_inst,g_inst,_year,p_lowest_NDVI,p_hottest_Ts,geometry_image,crs,transform,coords)
-            #SENSIBLE HEAT FLUX (H) [W M-2]           
-            h_inst=sensible_heat_flux(image,savi,ux,rh,rad_24h,ts_cold_number,d_hot_pixel,lst_dem,lst,elev,geometry_image,crs,transform)
-            #DAILY EVAPOTRANSPIRATION [MM DAY-1]
-            et=daily_et(image,h_inst,g_inst,rad_inst,lst_dem,rad_24h)
+            #sun elevation
+            sun_elevation=ee.Number(image.get('SUN_ELEVATION'))
+             
+            #LL: iterative process or endmembers selections may return empty values
+            #in this case, return an empty image instead of broken the code  
+            try:
+                   #LAND SURFACE TEMPERATURE CORRECTION
+                   lst_dem=lst_correction(image,time_start,ndwi,lst,elev,tair,rh,sun_elevation,_hour,_minuts,coords)
 
+                   #COLD PIXEL          
+                   d_cold_pixel=cold_pixel(image,ndvi,ndwi,lst_dem,_year,p_top_NDVI,p_coldest_Ts,geometry_image,crs,transform
+                                    ,coords,time_start,elev,_hour,_minuts)
+                   #T COLD
+                   ts_cold_number = ee.Number(d_cold_pixel.get('temp'))
+                   #NET RADIATION
+                   rad_inst=radiation_inst(image,time_start,elev,lst,emissivity,albedo,tair,rh,rso_inst,sun_elevation)
+                   #SOIL HEAT FLUX (G)
+                   g_inst=soil_heat_flux(rad_inst,ndvi,albedo,lst_dem)
+                   #DAILY NET RADIATION (FAO56)
+                   rad_24h=radiation_24h(image,time_start,tmax,tmin,elev,rso24h)
+                   #HOT PIXEL
+                   d_hot_pixel=fexp_hot_pixel(image,time_start,ndvi,ndwi,lst_dem,rad_inst,g_inst,_year,p_lowest_NDVI,
+                                       p_hottest_Ts,geometry_image,crs,transform,coords,elev,_hour,_minuts)
+                   #SENSIBLE HEAT FLUX (H) [W M-2]           
+                   h_inst=sensible_heat_flux(image,savi,ux,rh,rad_24h,ts_cold_number,d_hot_pixel,lst_dem,lst,elev,
+                                      geometry_image,crs,transform)
+                   #DAILY EVAPOTRANSPIRATION [MM DAY-1]
+                   et=daily_et(image,h_inst,g_inst,rad_inst,lst_dem,rad_24h)
+            except:
+                   et=ee.Image.constant(0).updateMask(0) #return a masked image
+              
             return et
 
 
@@ -162,21 +171,7 @@ def meteorology(image_region,time_start,meteo_inst_source,meteo_daily_source):
 def tao_sw(landsat_image,time_start,dem,tair,rh,sun_elevation):
     
     """Correct declivity and aspect effects from Land Surface Temperature"""    
-
-    #SOLAR CONSTANT [W M-2]
-    gsc = ee.Number(1367)
-    dateStr = ee.Date(time_start)
-    
-    #DAY OF YEAR
-    doy = dateStr.getRelative('day', 'year')
-    pi=ee.Number(math.pi)
-    
-    #INVERSE RELATIVE  DISTANCE EARTH-SUN
-    d1 =  ee.Number(2).multiply(pi).divide(ee.Number(365))
-    d2 = d1.multiply(doy)
-    d3 = d2.cos()
-    dr = ee.Number(1).add(ee.Number(0.033).multiply(d3))
-    
+  
     #ATMOSPHERIC PRESSURE [KPA] 
     #SHUTTLEWORTH (2012)
     pres = landsat_image.expression(
@@ -218,7 +213,52 @@ def tao_sw(landsat_image,time_start,dem,tair,rh,sun_elevation):
     
     return tao_sw_img
 
+def cos_terrain(landsat_image,time_start,dem,hour,minuts,coords):
 
+    dateStr = ee.Date(time_start)
+    
+    #DAY OF YEAR
+    doy = dateStr.getRelative('day', 'year')
+    
+    #DEGREE TO RADIAN
+    degree2radian = 0.01745
+    
+    #COS ZENITH ANGLE SUN ELEVATION #ALLEN ET AL. (2006)
+    slope_aspect = ee.Terrain.products(dem)
+    B=(ee.Number(360).divide(ee.Number(365))).multiply(doy.subtract(ee.Number(81)))
+    delta = ee.Image(ee.Number(23.45).multiply(degree2radian).sin().asin().multiply(B.multiply(degree2radian).sin()))
+    s =slope_aspect.select('slope').multiply(degree2radian)
+    gamma = (slope_aspect.select('aspect').subtract(180)).multiply(degree2radian)
+    phi = coords.select('latitude').multiply(degree2radian)
+
+    #CONSTANTS ALLEN ET AL. (2006)
+    a = ee.Image((delta.sin().multiply(phi.cos()).multiply(s.sin()).multiply(gamma.cos())).subtract(delta.sin().multiply(phi.sin().multiply(s.cos()))))
+    b = (delta.cos().multiply(phi.cos()).multiply(s.cos())).add(delta.cos().multiply(phi.sin().multiply(s.sin()).multiply(gamma.cos())))
+    c= (delta.cos().multiply(s.sin()).multiply(gamma.sin()))
+
+    #GET IMAGE CENTROID
+    longitude_center=coords.select('longitude')
+    #DELTA GTM 
+    delta_gtm =longitude_center.divide(ee.Image(15)).int()
+
+    min_to_hour=ee.Image(minuts).divide(60)
+
+    #LOCAL HOUR TIME
+    lht = ee.Image(hour).add(delta_gtm).add(min_to_hour)
+    
+    hour_a = (lht.subtract(12)).multiply(15)
+
+    w = hour_a.multiply(degree2radian)
+
+    cos_zn =landsat_image.expression(
+        '-a +b*w_cos +c*w_sin',{
+        'a': a,
+        'b': b,
+        'c': c,
+        'w_cos': w.cos(),
+        'w_sin': w.sin()}) 
+       
+    return cos_zn
 
 
 def lst_correction(landsat_image,time_start,ndwi,lst,dem,tair,rh,sun_elevation,hour,minuts):
@@ -269,47 +309,9 @@ def lst_correction(landsat_image,time_start,ndwi,lst,dem,tair,rh,sun_elevation,h
 
     #LAND SURFACE TEMPERATURE CORRECTION DEM [K]
     Temp_corr= lst.add(dem.select('elevation').multiply(Temp_lapse_rate))
-    
-    #LATITUDE
-    proj = landsat_image.select(0).projection();
-    latlon = ee.Image.pixelLonLat().reproject(proj);
-    coords = latlon.select(['longitude', 'latitude']); 
-    
-    #COS ZENITH ANGLE SUN ELEVATION #ALLEN ET AL. (2006)
-    slope_aspect = ee.Terrain.products(dem)
-    B=(ee.Number(360).divide(ee.Number(365))).multiply(doy.subtract(ee.Number(81)))
-    delta = ee.Image(ee.Number(23.45).multiply(degree2radian).sin().asin().multiply(B.multiply(degree2radian).sin()))
-    s =slope_aspect.select('slope').multiply(degree2radian)
-    gamma = (slope_aspect.select('aspect').subtract(180)).multiply(degree2radian)
-    phi = coords.select('latitude').multiply(degree2radian)
+ 
+    cos_zn=cos_terrain(landsat_image,time_start,dem,hour,minuts,coords)
 
-    #CONSTANTS ALLEN ET AL. (2006)
-    a = ee.Image((delta.sin().multiply(phi.cos()).multiply(s.sin()).multiply(gamma.cos())).subtract(delta.sin().multiply(phi.sin().multiply(s.cos()))))
-    b = (delta.cos().multiply(phi.cos()).multiply(s.cos())).add(delta.cos().multiply(phi.sin().multiply(s.sin()).multiply(gamma.cos())))
-    c= (delta.cos().multiply(s.sin()).multiply(gamma.sin()))
-
-    #GET IMAGE CENTROID
-    longitude_center=coords.select('longitude')
-    #DELTA GTM 
-    delta_gtm =longitude_center.divide(ee.Image(15)).int()
-
-    min_to_hour=ee.Image(minuts).divide(60)
-
-    #LOCAL HOUR TIME
-    lht = ee.Image(hour).add(delta_gtm).add(min_to_hour)
-    
-    hour_a = (lht.subtract(12)).multiply(15)
-
-    w = hour_a.multiply(degree2radian)
-
-    cos_zn =landsat_image.expression(
-        '-a +b*w_cos +c*w_sin',{
-        'a': a,
-        'b': b,
-        'c': c,
-        'w_cos': w.cos(),
-        'w_sin': w.sin()}) 
-    
     #LAND SURFACE TEMPERATURE WITH ASPECT/SLOPE CORRECTION [K]
     lst_dem=landsat_image.expression(
   
@@ -320,13 +322,10 @@ def lst_correction(landsat_image,time_start,ndwi,lst,dem,tair,rh,sun_elevation,h
         'Transm_corr':tao_sw_img,
         'cos_zenith_flat':cos_theta,
         'cos_zn':cos_zn,
-        'air_dens':air_dens}).rename('lst_dem')
-    
-    #MASKS FOR SELECT PRE-CANDIDATES PIXELS
-    lst_neg = lst_dem.multiply(-1).rename('lst_dem')
-    lst_nw = lst_dem.updateMask(ndwi.lte(0)).rename('lst_nw')
+        'air_dens':air_dens}).rename('lst_dem')  
     
     return lst_dem  
+
 def lc_mask(landsat_image,year,geometry_image):
     
     #CONDITIONS  
@@ -368,19 +367,19 @@ def lc_mask(landsat_image,year,geometry_image):
     return ee.Image(mask)
     
 
-def cold_pixel(landsat_image,ndvi,ndwi,lst_dem,year,ndvi_cold,lst_cold,geometry_image,_crs,_transform,coords):
+def cold_pixel(landsat_image,ndvi,ndwi,lst_dem,year,ndvi_cold,lst_cold,geometry_image,_crs,_transform,coords,
+               time_start,dem,hour,minuts):
 
   #pre-filter
   pos_ndvi = ndvi.updateMask(ndvi.gt(0)).rename('post_ndvi')
   ndvi_neg =  pos_ndvi.multiply(-1).rename('ndvi_neg')
   
-  lst_neg = lst_dem.multiply(-1).rename('lst_neg')
+  lst_neg = lst_dem.multiply(-1).rename('lst_neg').rename('lst_neg')
   lst_nw = lst_dem.updateMask(ndwi.lte(0)).rename('lst_nw')
 
   #land cover mask
-  
   land_cover_mask=lc_mask(landsat_image,year,geometry_image)
-    
+  
   image=pos_ndvi.addBands([ndvi,ndvi_neg,pos_ndvi,lst_neg,lst_nw,coords]) #.reproject(crs=_crs, crsTransform=_transform)
 
   d_perc_top_NDVI=image.select('ndvi_neg').updateMask(land_cover_mask).reduceRegion(
@@ -421,46 +420,7 @@ def cold_pixel(landsat_image,ndvi,ndwi,lst_dem,year,ndvi_cold,lst_cold,geometry_
         scale= 30, 
         maxPixels=1e9)
   n_sum_final_cold_pix = ee.Number(sum_final_cold_pix.get('int'))  
-  
 
-  '''
-  if  float(utils.getinfo(n_sum_final_cold_pix)) == 0:
-      
-      d_perc_top_NDVI=image.select('ndvi_neg').reduceRegion(
-          reducer=ee.Reducer.percentile([ndvi_cold]), 
-          geometry= landsat_image.geometry(), 
-          scale= 30,
-          maxPixels=1e9)
-     
-      n_perc_top_NDVI= ee.Number(d_perc_top_NDVI.get('ndvi_neg'))
-      i_top_NDVI=image.updateMask(image.select('ndvi_neg').lte(n_perc_top_NDVI));
-      d_perc_low_LST = i_top_NDVI.select('lst_nw').reduceRegion(
-        reducer= ee.Reducer.percentile([lst_cold]), 
-        geometry=landsat_image.geometry(), 
-        scale= 30,
-        maxPixels=1e9)
-    
-      n_perc_low_LST = ee.Number(d_perc_low_LST.get('lst_nw'))
-      i_cold_lst = i_top_NDVI.updateMask(i_top_NDVI.select('lst_nw').lte(n_perc_low_LST));
-
-      c_lst_cold20 =  i_cold_lst.updateMask(image.select('lst_nw').gte(200))
-      med_lst_cold20 = c_lst_cold20.select('lst_nw').reduceRegion(
-          reducer=  ee.Reducer.median(),
-          geometry= landsat_image.geometry(),
-          scale= 30,
-          maxPixels= 1e9)
-      n_med_lst_cold20 = ee.Number(med_lst_cold20.get('lst_nw'));  
-     
-      sum_final_cold_pix = c_lst_cold20.select('int').reduceRegion(
-            reducer=  ee.Reducer.sum(), 
-            geometry= landsat_image.geometry(), 
-            scale= 30, 
-            maxPixels=1e9)
-      n_sum_final_cold_pix = ee.Number(sum_final_cold_pix.get('int'))
-  
-  else:
-      pass
-  '''   
       
   def function_def_pixel(f):
       return f.setGeometry(ee.Geometry.Point([f.get('longitude'), f.get('latitude')]));
@@ -564,9 +524,7 @@ def radiation_24h(image,time_start,tmax,tmin,elev,rso24h):
     rns = image.expression(
     '(1 -albedo) * Rs', 
     {'Rs': rs, 'albedo': ee.Number(0.23)}).rename('rns') 
-        
-    tmean=(tmax.add(tmin)).divide(ee.Number(2))
-    
+            
     ea = image.expression(
      ' 0.6108 *(exp( (17.27 * T_air) / (T_air + 237.3)))', {
        'T_air': tmin,  
@@ -586,7 +544,7 @@ def radiation_24h(image,time_start,tmax,tmin,elev,rso24h):
 
 
 
-def fexp_hot_pixel(landsat_image,time_start,ndvi,ndwi,lst_dem,rn,g,year,ndvi_hot,lst_hot,geometry_image,crs,transform,coords):
+def fexp_hot_pixel(landsat_image,time_start,ndvi,ndwi,lst_dem,rn,g,year,ndvi_hot,lst_hot,geometry_image,crs,transform,coords,dem,hour,minuts):
  
     
   #pre-filter
@@ -598,7 +556,7 @@ def fexp_hot_pixel(landsat_image,time_start,ndvi,ndwi,lst_dem,rn,g,year,ndvi_hot
 
   #land cover mask
   land_cover_mask=lc_mask(landsat_image,year,geometry_image)
-    
+     
   image=pos_ndvi.addBands([ndvi,ndvi_neg,rn,g,pos_ndvi,lst_neg,lst_nw,coords])
   
   d_perc_down_ndvi = image.select('post_ndvi').updateMask(land_cover_mask).reduceRegion(
@@ -608,7 +566,7 @@ def fexp_hot_pixel(landsat_image,time_start,ndvi,ndwi,lst_dem,rn,g,year,ndvi_hot
       maxPixels=1e9,
     );
   n_perc_low_NDVI = ee.Number(d_perc_down_ndvi.get('post_ndvi'))
-  #print(n_perc_low_NDVI.getInfo())
+
   i_low_NDVI = image.updateMask(land_cover_mask).updateMask(image.select('post_ndvi').lte(n_perc_low_NDVI));
   
   d_perc_top_lst = i_low_NDVI.updateMask(land_cover_mask).select('lst_neg').reduceRegion(
@@ -618,20 +576,11 @@ def fexp_hot_pixel(landsat_image,time_start,ndvi,ndwi,lst_dem,rn,g,year,ndvi_hot
       maxPixels= 1e9,
     );
   n_perc_top_lst = ee.Number(d_perc_top_lst.get('lst_neg'))
-  #print(n_perc_top_lst.getInfo())
+  
   i_top_LST = i_low_NDVI.updateMask(land_cover_mask).updateMask(i_low_NDVI.select('lst_neg').lte(n_perc_top_lst))
   
   c_lst_hot_int=i_top_LST.select('lst_nw').int().rename('int')
   c_lst_hotpix=i_top_LST.addBands(c_lst_hot_int)
- 
- 
-  med_lst_hotpix = c_lst_hotpix.select('lst_nw').reduceRegion(
-      reducer= ee.Reducer.median(),
-      geometry= geometry_image,
-      scale= 30,
-      maxPixels= 1e9)
-  
-  n_med_lst_hotpix = ee.Number(med_lst_hotpix.get('lst_nw')); 
    
   sum_final_hot_pix = c_lst_hotpix.select('int').reduceRegion(
       reducer=  ee.Reducer.sum(),
@@ -639,50 +588,7 @@ def fexp_hot_pixel(landsat_image,time_start,ndvi,ndwi,lst_dem,rn,g,year,ndvi_hot
       scale= 30,
       maxPixels= 1e9,)
   n_sum_final_hot_pix = ee.Number(sum_final_hot_pix.get('int'));
-  
-  '''
-  if  float(utils.getinfo(n_sum_final_hot_pix)) == 0:
-      
-      d_perc_down_ndvi = image.select('pos_NDVI').reduceRegion(
-          reducer= ee.Reducer.percentile([ndvi_hot]), 
-          geometry= landsat_image.geometry(), 
-          scale= 30,
-          maxPixels=1e9)
-      n_perc_low_NDVI = ee.Number(d_perc_down_ndvi.get('pos_NDVI'))
-  
-      i_low_NDVI = image.updateMask(image.select('pos_NDVI').lte(n_perc_low_NDVI));
-  
-      d_perc_top_lst = i_low_NDVI.select('lst_neg').reduceRegion(
-          reducer=ee.Reducer.percentile([lst_hot]), 
-          geometry= landsat_image.geometry(), 
-          scale= 30,
-          maxPixels= 1e9)
-      n_perc_top_lst = ee.Number(d_perc_top_lst.get('lst_neg'))
-        
-      i_top_LST = i_low_NDVI.updateMask(i_low_NDVI.select('lst_neg').lte(n_perc_top_lst))
-        
-      c_lst_hot_int=i_top_LST.select('lst_nw').int().rename('int')
-      c_lst_hotpix=i_top_LST.addBands(c_lst_hot_int)
-         
-      med_lst_hotpix = c_lst_hotpix.select('lst_nw').reduceRegion(
-            reducer= ee.Reducer.median(),
-            geometry= landsat_image.geometry(),
-            scale= 30,
-            maxPixels= 1e9)
-        
-      n_med_lst_hotpix = ee.Number(med_lst_hotpix.get('lst_nw')); 
-         
-      sum_final_hot_pix = c_lst_hotpix.select('int').reduceRegion(
-            reducer=  ee.Reducer.sum(),
-            geometry= landsat_image.geometry(),
-            scale= 30,
-            maxPixels= 1e9)
-      n_sum_final_hot_pix = ee.Number(sum_final_hot_pix.get('int'))
-           
-  else:
-      pass
-  '''    
-   
+    
    #PRECIPITATION CORRECTION
   gridmet=ee.ImageCollection("IDAHO_EPSCOR/GRIDMET")
   
@@ -718,8 +624,7 @@ def fexp_hot_pixel(landsat_image,time_start,ndvi,ndwi,lst_dem,rn,g,year,ndvi_hot
   n_Rn_hot = ee.Number(fc_hot_pix.aggregate_first('rn_inst'))
   n_G_hot = ee.Number(fc_hot_pix.aggregate_first('g_inst'))
   n_Tfac= ee.Number(fc_hot_pix.aggregate_first('Tfac'))  
-  
-  
+   
   d_hot_pixel = ee.Dictionary({
     'temp': ee.Number(n_Ts_hot).subtract(ee.Number(n_Tfac)),
     'x': n_long_hot,
@@ -735,9 +640,9 @@ def fexp_hot_pixel(landsat_image,time_start,ndvi,ndwi,lst_dem,rn,g,year,ndvi_hot
 def sensible_heat_flux(landsat_image,savi,ux,rh,rad_24h,ts_cold_number,d_hot_pixel,lst_dem,lst,dem,geometry_image,crs,transform):
     
     #parameters
-    n_veg_hight = ee.Number(3)
+    n_veg_hight = ee.Number(2)
     n_zx = ee.Number(2)
-    n_hight = ee.Number(100)
+    n_hight = ee.Number(200)
     n_Cp = ee.Number(1004)#Air specific heat (J/kg/K)
     n_K = ee.Number(0.41)  #k is von Karman’s constant
     slope_aspect = ee.Terrain.products(dem)
@@ -820,23 +725,25 @@ def sensible_heat_flux(landsat_image,savi,ux,rh,rad_24h,ts_cold_number,d_hot_pix
             geometry= p_hot_pix,
             scale= 30,
             maxPixels=9000000000)
-    #Convert to Number for further use
-        n_rah_hot =   ee.Number(d_rah_hot.get('rah'))
-        #print('n rah hot: '+ str(n_rah_hot.getInfo()))
+        
+       
+        # LL : To avoid 'Max (NaN) cannot be less than min (NaN)' erros in cases which iterative process
+        # not converge
+        n_rah_hot =   ee.Number(d_rah_hot.get('rah')).multiply(100).short().divide(100)
+        
     #Near surface temperature difference in hot pixel (dT = Tz1 – Tz2)
     # dThot= Hhot*rah/(ρCp)
         n_dT_hot = (n_H_hot.multiply(n_rah_hot)).divide(n_ro_hot.multiply(n_Cp))
-        #print('dT Hot: ' + str(n_dT_hot.getInfo()))
+        
     # Near surface temperature difference in cold pixel (dT = Tz1 – Tz2)
         n_dT_cold = ee.Number(0)
     # dT =  aTs + b
     #Angular coefficient
         n_coef_a = (n_dT_cold.subtract(n_dT_hot)).divide(n_Ts_cold.subtract(n_Ts_hot))
-       # print('n coef a: ' + str(n_coef_a.getInfo()))
+       
     #Linear coefficient
         n_coef_b = n_dT_hot.subtract(n_coef_a.multiply(n_Ts_hot))
-        #print('n coef b: ' + str(n_coef_b.getInfo()))
-   
+        
     #dT for each pixel
         i_dT_int = landsat_image.expression( 
               '(n_coef_a * i_lst_med_dem) + n_coef_b', {
@@ -935,8 +842,7 @@ def sensible_heat_flux(landsat_image,savi,ux,rh,rad_24h,ts_cold_number,d_hot_pix
             n_dT_hot_old = n_dT_hot
             n_rah_hot_old = n_rah_hot 
             #insert each iteration value into a list
-       # print('n_dif:' + str(n_dif.getInfo()))
-        #print('aaa')
+
         list_dif = list_dif.add(n_dif);
         list_coef_a = list_coef_a.add(n_coef_a)
         list_coef_b = list_coef_b.add(n_coef_b)
@@ -979,7 +885,6 @@ def daily_et(landsat_image,h_inst,g_inst,rn_inst,lst_dem,rad_24h):
              'i_G' : g_inst }).rename('FE')
     i_FE=i_FE.clamp(0,1)
 
- 
     i_ET24h_calc = i_FE.expression( 
            '(0.0864 *i_FE * Rn24hobs)/(i_lambda)', {
           'i_FE' : i_FE,
