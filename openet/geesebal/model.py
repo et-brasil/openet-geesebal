@@ -29,8 +29,6 @@ def et(image,ndvi,ndwi,lst,albedo,lai,meteo_inst_source,meteo_daily_source,
                                  
             #image_region=image.geometry()
             
-            sun_elevation=ee.Number(90).subtract(zenith_angle) #<--- LOOK AFTER
-            
             #METEOROLOGY PARAMETERS - GRIDMET AND NLDAS
             tmin,tmax,tair,ux,rh,rso_inst,rso24h=meteorology(image,time_start,meteo_inst_source,meteo_daily_source) #<----LOOK AFTER
             
