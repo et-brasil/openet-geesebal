@@ -28,7 +28,7 @@ def et(image,ndvi,ndwi,lst,albedo,lai,meteo_inst_source,meteo_daily_source,
             #date_string=utils.getinfo(_date.format('YYYY-MM-dd'))
                                  
             #image_region=image.geometry()
-            
+
             #METEOROLOGY PARAMETERS - GRIDMET AND NLDAS
             tmin,tmax,tair,ux,rh,rso_inst,rso24h=meteorology(image,time_start,meteo_inst_source,meteo_daily_source) #<----LOOK AFTER
             
@@ -259,7 +259,7 @@ def cos_terrain(landsat_image,time_start,dem,hour,minuts,coords):
     return cos_zn
 
 
-def lst_correction(landsat_image,time_start,ndwi,lst,dem,tair,rh,sun_elevation,hour,minuts):
+def lst_correction(landsat_image,time_start,ndwi,lst,dem,tair,rh,sun_elevation,hour,minuts,coords):
     
     """Correct declivity and aspect effects from Land Surface Temperature"""    
 

@@ -42,10 +42,6 @@ def lst(landsat_image):
     lai_img = lai(landsat_image)
     ndvi_img = ndvi(landsat_image)
 
-    # CGM - This isn't used
-    # emissivity_img = emissivity(landsat_image)\
-    #     .where(ndvi_img.lt(0), 0.985).rename('emissivity')
-
     # Narrow band transmissivity
     e_NB = landsat_image.expression('0.97 + (0.0033 * LAI)', {'LAI': lai_img})
     e_NB = e_NB.where(lai_img.gt(3), 0.98).rename('e_NB')
@@ -127,3 +123,22 @@ def cloud_mask_sr_l8(landsat_image):
     mask = c01.Or(c02).Or(c03)
 
     return mask
+
+def cloud_mask_C2_l457(landsat_image):
+    """Cloud mask (Landsat 4/5/7)"""
+    quality = landsat_image.select('QA_PIXEL')
+    c01 = quality.eq(5440)
+    c02 = quality.eq(5504)
+    mask = c01.Or(c02)
+
+    return mask
+
+def cloud_mask_C2_l8(landsat_image):
+    """Cloud mask (Landsat 8)"""
+    quality = landsat_image.select('QA_PIXEL')
+    c01 = quality.eq(21824)
+    c02 = quality.eq(21952)
+    c03 = quality.eq(1346)
+    mask = c01.Or(c02).Or(c03)
+
+    return mask    
