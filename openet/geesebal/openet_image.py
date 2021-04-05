@@ -26,7 +26,7 @@ def lazy_property(fn):
 
 class Image():
     """Google Earth Engine SEBAL - GEESEBAL for Landsat image"""
-    
+
     def __init__(
             self, image,
             et_reference_source='IDAHO_EPSCOR/GRIDMET',
@@ -43,7 +43,7 @@ class Image():
             reflectance_type='SR',
             **kwargs,
             ):
-        
+
         """Construct a generic GEESEBAL Image
 
         Parameters
@@ -53,16 +53,20 @@ class Image():
             Image must have bands:
                 ndvi, lai, savi, lst, emissivity, ndwi, albedo
             Image must have properties:
-                SOLAR_ZENITH_ANGLE, system:id, system:index, system:time_start
+                SUN_ELEVATION, system:id, system:index, system:time_start
 
         meteorology_source_inst : str, optional
             Instantaneous meteorology source collection ID.
-            TODO: Add detail about what needs to be in the this collection or
-              which collections are supported
+            Collection supported:
+                NASA/NLDAS/FORA0125_H002
+            Meteorology collection must have bands:
+                tair, ux, rh, rso_inst
         meteorology_source_daily : str
-            Instantaneous meteorology source collection ID.
-            TODO: Add detail about what needs to be in the this collection or
-              which collections are supported
+            Daily meteorology source collection ID.
+            Collection supported:
+                IDAHO_EPSCOR/GRIDMET
+            Meteorology collection must have bands:
+                tmin,tmax, rso24h
         elev_source : str, optional
             Elevation source image ID.
         ndvi_cold : int, ee.Number, optional
@@ -73,13 +77,13 @@ class Image():
             LST Percentile value to determinate cold pixel
         lst_hot : int, ee.Number, optional
             LST Percentile value to determinate hot pixel
-        
+
         Notes
         -----
         Standard percentiles are from Allen et al. (2013)
-            
+
         """
-        
+
         self.image = image
 
         # Copy system properties
@@ -108,8 +112,6 @@ class Image():
         self._start_date = ee.Date(utils.date_to_time_0utc(self._date))
         self._end_date = self._start_date.advance(1, 'day')
         self._doy = ee.Number(self._date.getRelative('day', 'year')).add(1).int()
-        
-        self._zenith_angle = ee.Number(self.image.get("SOLAR_ZENITH_ANGLE"))
 
         # Model input parameters
         self._et_reference_source = et_reference_source
@@ -130,7 +132,7 @@ class Image():
         self.proj = self.image.select(0).projection()
         self.latlon = ee.Image.pixelLonLat().reproject(self.proj)
         self.coords = self.latlon.select(['longitude', 'latitude' ])
-        
+
         # Image projection and geotransform
         self.crs = image.projection().crs()
         self.transform = ee.List(ee.Dictionary(
@@ -152,7 +154,7 @@ class Image():
         """
         # DEADBEEF - Should the supported image collection IDs and helper
         # function mappings be set in a property or method of the Image class?
-        collection_methods = {      
+        collection_methods = {
             'LANDSAT/LC08/C01/T1_SR': 'from_landsat_c1_sr',
             'LANDSAT/LE07/C01/T1_SR': 'from_landsat_c1_sr',
             'LANDSAT/LT05/C01/T1_SR': 'from_landsat_c1_sr',
@@ -212,51 +214,51 @@ class Image():
         k2 = ee.Dictionary({
             'LANDSAT_4': 1260.56, 'LANDSAT_5': 1260.56,
             'LANDSAT_7': 1282.71, 'LANDSAT_8': 1321.0789})
-        
+
         #prep_image = sr_image\
            # .select(input_bands.get(spacecraft_id), output_bands)\
            # .multiply([0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.1, 1])\
            # .set({'k1_constant': ee.Number(k1.get(spacecraft_id)),
                   #'k2_constant': ee.Number(k2.get(spacecraft_id))})
-        
+
         def prep_image_l8(sr_image,input_bands,spacecraft_id,k1,k2):
-            
+
              prep_image = sr_image\
                 .select(input_bands.get(spacecraft_id),['ultra_blue','blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'tir',
                         'pixel_qa'])\
                 .multiply([0.0001,0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.1, 1])\
                 .set({'k1_constant': ee.Number(k1.get(spacecraft_id)),
                       'k2_constant': ee.Number(k2.get(spacecraft_id))})
-                
+
              return prep_image
-        
+
         def prep_image_l457(sr_image,input_bands,spacecraft_id,k1,k2):
-            
+
             prep_image = sr_image\
                 .select(input_bands.get(spacecraft_id),['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'tir',
                         'pixel_qa'])\
                 .multiply([0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.1, 1])\
                 .set({'k1_constant': ee.Number(k1.get(spacecraft_id)),
-                      'k2_constant': ee.Number(k2.get(spacecraft_id))})   
-            
+                      'k2_constant': ee.Number(k2.get(spacecraft_id))})
+
             return prep_image
-        
+
         #compareTo return 0 if condition is true
         #on the other hand, ee.Algorithms.If return 1 if condition is true
-        
+
         prep_image=ee.Image(ee.Algorithms.If(spacecraft_id.compareTo(ee.String('LANDSAT_8')),
                                     prep_image_l457(sr_image,input_bands,spacecraft_id,k1,k2),
                                     prep_image_l8(sr_image,input_bands,spacecraft_id,k1,k2)))
-        
+
         albedo=ee.Algorithms.If(spacecraft_id.compareTo(ee.String('LANDSAT_8')),
                                 landsat.albedo_l457(prep_image),landsat.albedo_l8(prep_image))
-        
+
         cloud_mask=ee.Algorithms.If(spacecraft_id.compareTo(ee.String('LANDSAT_8')),
                                     landsat.cloud_mask_sr_l457(sr_image),landsat.cloud_mask_sr_l8(sr_image))
-        
-        #calc sun elevation 
-        sun_elevation=ee.Number(90).subtract(ee.Number(sr_image.get('SOLAR_ZENITH_ANGLE')))        
-    
+
+        #calc sun elevation
+        sun_elevation=ee.Number(90).subtract(ee.Number(sr_image.get('SOLAR_ZENITH_ANGLE')))
+
         # k1 = ee.Dictionary({
         #     'LANDSAT_4': 'K1_CONSTANT_BAND_6',
         #     'LANDSAT_5': 'K1_CONSTANT_BAND_6',
