@@ -38,8 +38,8 @@ setup(
     long_description=long_description,
     long_description_content_type='text/x-rst',
     license='Apache',
-    author='XXXXXXXX',
-    author_email='XXXXXXXX',
+    author='Anderson Ruhoff; Leonardo Laipelt;',
+    author_email='andersonruhoff@gmail.com',
     url='https://github.com/Open-ET/openet-{}-beta'.format(model_name.lower()),
     download_url='https://github.com/Open-ET/openet-{}-beta/archive/v{}.tar.gz'.format(
 		model_name.lower(), version),
