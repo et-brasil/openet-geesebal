@@ -506,16 +506,18 @@ class Image():
                         crs=self.crs,
                         transform=self.transform,
                         coords=self.coords
-                        ).set(self._properties)          
-        
+                        ).set(self._properties)
+
 
         return et.set(self._properties)
-    
+
     @lazy_property
     def et_fraction(self):
 
         et_fr = model.et_fraction(
-            self.image, self.et,
+            self.image,
+            self._time_start,
+            self.et,
             self._et_reference_source, self._et_reference_band,
             self._et_reference_factor)
 
