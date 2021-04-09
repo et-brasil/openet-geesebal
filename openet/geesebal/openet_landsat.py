@@ -17,14 +17,14 @@ def fipar(landsat_image):
 
 def lai(landsat_image):
     """Leaf area index"""
-    return ee.Image(landsat_image).expression('log(1 - fIPAR)/(KPAR)', {
+    return ee.Image(landsat_image).expression('log(1 - fIPAR) / (KPAR)', {
             'fIPAR': fipar(ee.Image(landsat_image)),
             'KPAR': ee.Number(0.5)
         }).rename('lai')
 
 
 def ndwi(landsat_image):
-
+    """Normalized difference water index"""
     return ee.Image(landsat_image).normalizedDifference(['green', 'nir'])\
         .rename('ndwi')
 
@@ -51,7 +51,7 @@ def lst(landsat_image):
     e_NB = e_NB.where(ndvi_img.lt(0), 0.99).rename('e_NB')
 
     lst = landsat_image.expression(
-        'Tb / ( 1+ ( ( comp_onda * Tb / fator) * log_eNB))', {
+        'Tb / ( 1 + ( ( comp_onda * Tb / fator) * log_eNB))', {
             'Tb': landsat_image.select('tir'),
             'comp_onda': ee.Number(1.115e-05),
             'log_eNB': e_NB.log(),
@@ -64,7 +64,7 @@ def lst(landsat_image):
 def savi(landsat_image):
     """Soil adjusted vegetation index"""
     savi = landsat_image.expression(
-        '((1 + 0.5)*(B5 - B4)) / (0.5 + (B5 + B4))', {
+        '((1 + 0.5) * (B5 - B4)) / (0.5 + (B5 + B4))', {
             'B4': landsat_image.select('red'),
             'B5': landsat_image.select('nir'),
         }).rename('savi')
@@ -124,6 +124,7 @@ def cloud_mask_sr_l8(landsat_image):
 
     return mask
 
+
 def cloud_mask_C2_l457(landsat_image):
     """Cloud mask (Landsat 4/5/7)"""
     quality = landsat_image.select('QA_PIXEL')
@@ -132,6 +133,7 @@ def cloud_mask_C2_l457(landsat_image):
     mask = c01.Or(c02)
 
     return mask
+
 
 def cloud_mask_C2_l8(landsat_image):
     """Cloud mask (Landsat 8)"""
