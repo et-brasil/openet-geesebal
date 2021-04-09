@@ -8,21 +8,32 @@ def ndvi(landsat_image):
 
 
 def fipar(landsat_image):
-    """Fraction of intercepted photosynthetically active radiation"""
-    ndvi_clamp = ndvi(landsat_image).clamp(0.0, 1.00)
+    """Fraction of intercepted photosynthetically active radiation
 
-    # CGM - Why do you multiply ndvi * 1?
-    # CGM - The 0.05 doesn't need to be cast to a number
-    return ndvi_clamp.multiply(1).subtract(ee.Number(0.05)).clamp(0, 1)\
+    References
+    ----------
+    ?
+
+    """
+    ndvi_clamp = ndvi(landsat_image).clamp(0.0, 1.0)
+
+    # CGM - Why do you multiply by 1?
+    return ndvi_clamp.multiply(1).subtract(0.05).clamp(0.0, 1.0)\
         .rename('fipar')
 
 
 def lai(landsat_image):
-    """Leaf area index"""
+    """Leaf area index
 
-    # CGM - This is returning negative values
-    #   Should KPAR be -0.5?
-    return ee.Image(landsat_image).expression('log(1 - fIPAR) / (KPAR)', {
+    References
+    ----------
+    ?
+
+    """
+
+    # CGM - Added the -1 multiplier
+    #   These LAI values seem "low" though
+    return ee.Image(landsat_image).expression('-1 * log(1 - fIPAR) / KPAR', {
             'fIPAR': fipar(ee.Image(landsat_image)),
             'KPAR': ee.Number(0.5)
         }).rename('lai')
@@ -35,15 +46,31 @@ def ndwi(landsat_image):
 
 
 def emissivity(landsat_image):
-    """Broad-band surface emissivity"""
+    """Broad-band surface emissivity
+
+    References
+    ----------
+    ?
+    """
+
     lai_img = lai(landsat_image)
-    
+
     return landsat_image.expression('0.95 + 0.01 * LAI', {'LAI': lai_img})\
         .where(lai_img.gt(3), 0.98).rename('emissivity')
 
+    # # CGM - It might be more efficient to call .min(0.98) instead of .where()
+    # return lai(landsat_image).multiply(0.01).add(0.95).min(0.98)\
+    #     .rename('emissivity')
+
 
 def lst(landsat_image):
-    """Land surface temperature"""
+    """Land surface temperature
+
+    References
+    ----------
+    ?
+    """
+
     lai_img = lai(landsat_image)
     ndvi_img = ndvi(landsat_image)
 
@@ -79,9 +106,16 @@ def savi(landsat_image):
 
 
 def albedo_l457(landsat_image):
-    """Albedo (Landsat 4/5/7)"""
+    """Albedo (Landsat 4/5/7)
+
+    References
+    ----------
+    ?
+    """
+
     albedo = landsat_image.expression(
-        '(0.254*B1) + (0.149*B2) + (0.147*B3) + (0.311*B4) + (0.103*B5) + (0.036*B7)', {
+        '(0.254 * B1) + (0.149 * B2) + (0.147 * B3) + (0.311 * B4) + '
+        '(0.103 * B5) + (0.036 * B7)', {
             'B1' : landsat_image.select(['blue']),
             'B2' : landsat_image.select(['green']),
             'B3' : landsat_image.select(['red']),
@@ -94,10 +128,17 @@ def albedo_l457(landsat_image):
 
 
 def albedo_l8(landsat_image):
-    """Albedo (Landsat 8)"""
-    # CGM - These don't sum to 100?
+    """Albedo (Landsat 8)
+
+    References
+    ----------
+    ?
+    """
+
+    # CGM - These coefficients don't sum to 1.0?
     albedo = landsat_image.expression(
-        '(0.130*B1) + (0.115*B2) + (0.143*B3) + (0.180*B4) + (0.281*B5) + (0.108*B6) + (0.042*B7)', {
+        '(0.130 * B1) + (0.115 * B2) + (0.143 * B3) + (0.180 * B4) + '
+        '(0.281 * B5) + (0.108 * B6) + (0.042 * B7)', {
             'B1' : landsat_image.select(['ultra_blue']),
             'B2' : landsat_image.select(['blue']),
             'B3' : landsat_image.select(['green']),
@@ -107,11 +148,20 @@ def albedo_l8(landsat_image):
             'B7' : landsat_image.select(['swir2']),
         }).rename('albedo')
 
+    # # CGM - Just curious if the sum reducer would work
+    # albedo = landsat_image\
+    #     .select(['ultra_blue', 'blue', 'green', 'red', 'nir', 'swir1', 'swir2'])\
+    #     .multiply([0.130, 0.115, 0.143, 0.180, 0.281, 0.108, 0.042])\
+    #     .reduce(ee.Reducer.sum())\
+    #     .rename(['albedo'])
+
     return albedo
 
 
 def cloud_mask_sr_l457(landsat_image):
     """Cloud mask (Landsat 4/5/7)"""
+
+    # CGM - Where did these values come from?
     quality = landsat_image.select('pixel_qa')
     c01 = quality.eq(66)
     c02 = quality.eq(68)
@@ -122,6 +172,8 @@ def cloud_mask_sr_l457(landsat_image):
 
 def cloud_mask_sr_l8(landsat_image):
     """Cloud mask (Landsat 8)"""
+
+    # CGM - Where did these values come from?
     quality = landsat_image.select('pixel_qa')
     c01 = quality.eq(322)
     c02 = quality.eq(324)
@@ -133,6 +185,8 @@ def cloud_mask_sr_l8(landsat_image):
 
 def cloud_mask_C2_l457(landsat_image):
     """Cloud mask (Landsat 4/5/7)"""
+
+    # CGM - Where did these values come from?
     quality = landsat_image.select('QA_PIXEL')
     c01 = quality.eq(5440)
     c02 = quality.eq(5504)
@@ -143,6 +197,8 @@ def cloud_mask_C2_l457(landsat_image):
 
 def cloud_mask_C2_l8(landsat_image):
     """Cloud mask (Landsat 8)"""
+
+    # CGM - Where did these values come from?
     quality = landsat_image.select('QA_PIXEL')
     c01 = quality.eq(21824)
     c02 = quality.eq(21952)
