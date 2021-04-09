@@ -244,84 +244,93 @@ def test_albedo_l8_band_name():
     assert output == 'albedo'
 
 
-# @pytest.mark.parametrize(
-#     "img_value, expected",
-#     [
-#         ['0000000000000000', 0],  # Designated Fill
-#         ['0000000000000001', 0],
-#         ['0000000000000010', 0],  # Clear
-#         ['0000000000000100', 0],  # Water
-#         ['0000000000001000', 0],  # Cloud Shadow
-#         ['0000000000010000', 0],  # Snow
-#         ['0000000000100000', 0],  # Cloud
-#         ['0000000001100000', 0],  # Cloud Confidence
-#         ['0000000010100000', 0],
-#         ['0000000011100000', 0],
-#     ]
-# )
-# def test_cloud_mask_sr_l457(img_value, expected):
-#     input_img = ee.Image.constant(int(img_value, 2)).rename(['pixel_qa'])
-#     output_img = landsat.cloud_mask_sr_l457(input_img)
-#     assert utils.constant_image_value(output_img)['pixel_qa'] == expected
-#
-#
-# @pytest.mark.parametrize(
-#     "img_value, expected",
-#     [
-#         ['0000000000000000', 0],  # Designated Fill
-#         ['0000000000000001', 0],
-#         ['0000000000000010', 0],  # Clear
-#         ['0000000000000100', 0],  # Water
-#         ['0000000000001000', 0],  # Cloud Shadow
-#         ['0000000000010000', 0],  # Snow
-#         ['0000000000100000', 0],  # Cloud
-#         ['0000000001100000', 0],  # Cloud Confidence
-#         ['0000000010100000', 0],
-#         ['0000000011100000', 0],
-#     ]
-# )
-# def test_cloud_mask_sr_l8(img_value, expected):
-#     input_img = ee.Image.constant(int(img_value, 2)).rename(['pixel_qa'])
-#     output_img = landsat.cloud_mask_sr_l8(input_img)
-#     assert utils.constant_image_value(output_img)['pixel_qa'] == expected
-#
-#
-# @pytest.mark.parametrize(
-#     "img_value, expected",
-#     [
-#         ['0000000000000000', 0],  # Designated Fill
-#         ['0000000000000001', 0],
-#         ['0000000000000010', 0],  # Dilated Cloud
-#         ['0000000000000100', 0],  # Cirrus
-#         ['0000000000001000', 1],  # Cloud
-#         ['0000000000010000', 0],  # Cloud Shadow
-#         ['0000000000100000', 0],  # Snow
-#         ['0000000001000000', 0],  # Clear
-#         ['0000000010000000', 0],  # Water
-#     ]
-# )
-# def test_cloud_mask_C2_l457(img_value, expected):
-#     input_img = ee.Image.constant(int(img_value, 2)).rename(['QA_PIXEL'])
-#     output_img = landsat.cloud_mask_C2_l457(input_img)
-#     assert utils.constant_image_value(output_img)['QA_PIXEL'] == expected
-#
-#
-# @pytest.mark.parametrize(
-#     "img_value, expected",
-#     [
-#
-#         ['0000000000000000', 0],  # Designated Fill
-#         ['0000000000000001', 0],
-#         ['0000000000000010', 0],  # Dilated Cloud
-#         ['0000000000000100', 0],  # Cirrus
-#         ['0000000000001000', 1],  # Cloud
-#         ['0000000000010000', 0],  # Cloud Shadow
-#         ['0000000000100000', 0],  # Snow
-#         ['0000000001000000', 0],  # Clear
-#         ['0000000010000000', 0],  # Water
-#     ]
-# )
-# def test_cloud_mask_C2_l8(img_value, expected):
-#     input_img = ee.Image.constant(int(img_value, 2)).rename(['QA_PIXEL'])
-#     output_img = landsat.cloud_mask_C2_l8(input_img)
-#     assert utils.constant_image_value(output_img)['QA_PIXEL'] == expected
+@pytest.mark.parametrize(
+    "img_value, expected",
+    [
+        # ['0000000000000000', 0],  # Designated Fill
+        # ['0000000000000001', 0],
+        # ['0000000000000010', 1],  # Clear
+        # ['0000000000000100', 1],  # Water
+        # ['0000000000001000', 0],  # Cloud Shadow
+        # ['0000000000010000', 0],  # Snow
+        # ['0000000000100000', 0],  # Cloud
+        # ['0000000001100000', 0],  # Cloud Confidence
+        # ['0000000010100000', 0],
+        # ['0000000011100000', 0],
+        ['0000000001000010', 1],
+        ['0000000001000100', 1],
+    ]
+)
+def test_cloud_mask_sr_l457(img_value, expected):
+    input_img = ee.Image.constant(int(img_value, 2)).rename(['pixel_qa'])
+    output_img = landsat.cloud_mask_sr_l457(input_img)
+    assert utils.constant_image_value(output_img)['pixel_qa'] == expected
+
+
+@pytest.mark.parametrize(
+    "img_value, expected",
+    [
+        # ['0000000000000000', 0],  # Designated Fill
+        # ['0000000000000001', 0],
+        # ['0000000000000010', 1],  # Clear
+        # ['0000000000000100', 1],  # Water
+        # ['0000000000001000', 0],  # Cloud Shadow
+        # ['0000000000010000', 0],  # Snow
+        # ['0000000000100000', 0],  # Cloud
+        # ['0000000001100000', 0],  # Cloud Confidence
+        # ['0000000010100000', 0],
+        # ['0000000011100000', 0],
+        ['0000000101000010', 1],
+        ['0000000101000100', 1],
+        ['0000010101000010', 1],
+    ]
+)
+def test_cloud_mask_sr_l8(img_value, expected):
+    input_img = ee.Image.constant(int(img_value, 2)).rename(['pixel_qa'])
+    output_img = landsat.cloud_mask_sr_l8(input_img)
+    assert utils.constant_image_value(output_img)['pixel_qa'] == expected
+
+
+@pytest.mark.parametrize(
+    "img_value, expected",
+    [
+        # ['0000000000000000', 0],  # Designated Fill
+        # ['0000000000000001', 1],
+        # ['0000000000000010', 0],  # Dilated Cloud
+        # ['0000000000000100', 0],  # Cirrus
+        # ['0000000000001000', 1],  # Cloud
+        # ['0000000000010000', 0],  # Cloud Shadow
+        # ['0000000000100000', 0],  # Snow
+        # ['0000000001000000', 0],  # Clear
+        # ['0000000010000000', 1],  # Water
+        ['0001010101000000', 1],  # Clear
+        ['0001010110000000', 1],  # Water
+    ]
+)
+def test_cloud_mask_C2_l457(img_value, expected):
+    input_img = ee.Image.constant(int(img_value, 2)).rename(['QA_PIXEL'])
+    output_img = landsat.cloud_mask_C2_l457(input_img)
+    assert utils.constant_image_value(output_img)['QA_PIXEL'] == expected
+
+
+@pytest.mark.parametrize(
+    "img_value, expected",
+    [
+        # ['0000000000000000', 0],  # Designated Fill
+        # ['0000000000000001', 1],
+        # ['0000000000000010', 0],  # Dilated Cloud
+        # ['0000000000000100', 0],  # Cirrus
+        # ['0000000000001000', 0],  # Cloud
+        # ['0000000000010000', 0],  # Cloud Shadow
+        # ['0000000000100000', 0],  # Snow
+        # ['0000000001000000', 0],  # Clear
+        # ['0000000010000000', 1],  # Water
+        ['101010101000000', 1],  # Clear
+        ['101010111000000', 1],  # Water
+        ['000010101000010', 1],  #
+    ]
+)
+def test_cloud_mask_C2_l8(img_value, expected):
+    input_img = ee.Image.constant(int(img_value, 2)).rename(['QA_PIXEL'])
+    output_img = landsat.cloud_mask_C2_l8(input_img)
+    assert utils.constant_image_value(output_img)['QA_PIXEL'] == expected

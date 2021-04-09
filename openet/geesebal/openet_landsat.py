@@ -161,10 +161,9 @@ def albedo_l8(landsat_image):
 def cloud_mask_sr_l457(landsat_image):
     """Cloud mask (Landsat 4/5/7)"""
 
-    # CGM - Where did these values come from?
     quality = landsat_image.select('pixel_qa')
-    c01 = quality.eq(66)
-    c02 = quality.eq(68)
+    c01 = quality.eq(66)  # Clear (01000010)
+    c02 = quality.eq(68)  # Water (01000100)
     mask = c01.Or(c02)
 
     return mask
@@ -173,11 +172,10 @@ def cloud_mask_sr_l457(landsat_image):
 def cloud_mask_sr_l8(landsat_image):
     """Cloud mask (Landsat 8)"""
 
-    # CGM - Where did these values come from?
     quality = landsat_image.select('pixel_qa')
-    c01 = quality.eq(322)
-    c02 = quality.eq(324)
-    c03 = quality.eq(1346)
+    c01 = quality.eq(322)  # Clear (00101000010)
+    c02 = quality.eq(324)  # Water (00101000100)
+    c03 = quality.eq(1346) #       (10101000010)
     mask = c01.Or(c02).Or(c03)
 
     return mask
@@ -186,10 +184,9 @@ def cloud_mask_sr_l8(landsat_image):
 def cloud_mask_C2_l457(landsat_image):
     """Cloud mask (Landsat 4/5/7)"""
 
-    # CGM - Where did these values come from?
     quality = landsat_image.select('QA_PIXEL')
-    c01 = quality.eq(5440)
-    c02 = quality.eq(5504)
+    c01 = quality.eq(5440)  # Clear (0001010101000000)
+    c02 = quality.eq(5504)  # Water (0001010110000000)
     mask = c01.Or(c02)
 
     return mask
@@ -198,11 +195,10 @@ def cloud_mask_C2_l457(landsat_image):
 def cloud_mask_C2_l8(landsat_image):
     """Cloud mask (Landsat 8)"""
 
-    # CGM - Where did these values come from?
     quality = landsat_image.select('QA_PIXEL')
-    c01 = quality.eq(21824)
-    c02 = quality.eq(21952)
-    c03 = quality.eq(1346)
+    c01 = quality.eq(21824)  # Clear (101010101000000)
+    c02 = quality.eq(21952)  # Water (101010111000000)
+    c03 = quality.eq(1346)   # ?     (000010101000010)
     mask = c01.Or(c02).Or(c03)
 
     return mask    
