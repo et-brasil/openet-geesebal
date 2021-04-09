@@ -11,12 +11,17 @@ def fipar(landsat_image):
     """Fraction of intercepted photosynthetically active radiation"""
     ndvi_clamp = ndvi(landsat_image).clamp(0.0, 1.00)
 
+    # CGM - Why do you multiply ndvi * 1?
+    # CGM - The 0.05 doesn't need to be cast to a number
     return ndvi_clamp.multiply(1).subtract(ee.Number(0.05)).clamp(0, 1)\
         .rename('fipar')
 
 
 def lai(landsat_image):
     """Leaf area index"""
+
+    # CGM - This is returning negative values
+    #   Should KPAR be -0.5?
     return ee.Image(landsat_image).expression('log(1 - fIPAR) / (KPAR)', {
             'fIPAR': fipar(ee.Image(landsat_image)),
             'KPAR': ee.Number(0.5)
@@ -90,6 +95,7 @@ def albedo_l457(landsat_image):
 
 def albedo_l8(landsat_image):
     """Albedo (Landsat 8)"""
+    # CGM - These don't sum to 100?
     albedo = landsat_image.expression(
         '(0.130*B1) + (0.115*B2) + (0.143*B3) + (0.180*B4) + (0.281*B5) + (0.108*B6) + (0.042*B7)', {
             'B1' : landsat_image.select(['ultra_blue']),
