@@ -29,10 +29,6 @@ class Image():
 
     def __init__(
             self, image,
-            et_reference_source='IDAHO_EPSCOR/GRIDMET',
-            et_reference_band='eto',
-            et_reference_factor=0.85,
-            et_reference_resample=None,
             meteorology_source_inst='NASA/NLDAS/FORA0125_H002',
             meteorology_source_daily='IDAHO_EPSCOR/GRIDMET',
             elev_source='USGS/SRTMGL1_003',
@@ -40,6 +36,10 @@ class Image():
             ndvi_hot=10,
             lst_cold=20,
             lst_hot=10,
+            et_reference_source='IDAHO_EPSCOR/GRIDMET',
+            et_reference_band='eto',
+            et_reference_factor=0.85,
+            et_reference_resample=None,
             **kwargs,
             ):
 
@@ -111,21 +111,20 @@ class Image():
         self._doy = ee.Number(self._date.getRelative('day', 'year')).add(1).int()
 
         # Model input parameters
-        self._et_reference_source = et_reference_source
-        self._et_reference_band = et_reference_band
-        self._et_reference_factor = et_reference_factor
         self._meteorology_source_inst = meteorology_source_inst
         self._meteorology_source_daily = meteorology_source_daily
-        # CGM - Do these need to be cast to ee Numbers or will the ET function
-        #   work if they are integers?
-        # LL - works fine without casting.
+        self._elev_source = elev_source
         self._ndvi_cold = ndvi_cold
         self._ndvi_hot = ndvi_hot
         self._lst_cold = lst_cold
         self._lst_hot = lst_hot
-        self.elev_source = elev_source
-        self.geometry = self.image.select(0).geometry()
 
+        self._et_reference_source = et_reference_source
+        self._et_reference_band = et_reference_band
+        self._et_reference_factor = et_reference_factor
+        self._et_reference_resample = et_reference_resample
+
+        self.geometry = self.image.select(0).geometry()
         self.proj = self.image.select(0).projection()
         self.latlon = ee.Image.pixelLonLat().reproject(self.proj)
         self.coords = self.latlon.select(['longitude', 'latitude' ])
@@ -276,7 +275,7 @@ class Image():
         #     .set({'k1_constant': ee.Number(sr_image.get(k1.get(spacecraft_id))),
         #           'k2_constant': ee.Number(sr_image.get(k2.get(spacecraft_id)))})
 
-        
+
           #  sr_image, **cloudmask_args)
 
         # Build the input image
@@ -377,7 +376,7 @@ class Image():
         
         cloud_mask=ee.Algorithms.If(spacecraft_id.compareTo(ee.String('LANDSAT_8')),
                                     landsat.cloud_mask_C2_l457(sr_image),landsat.cloud_mask_C2_l8(sr_image))
-        
+
 
         # Default the cloudmask flags to True if they were not
         # Eventually these will probably all default to True in openet.core
@@ -389,11 +388,11 @@ class Image():
             cloudmask_args['shadow_flag'] = True
         if 'snow_flag' not in cloudmask_args.keys():
             cloudmask_args['snow_flag'] = True
-        
-        
-        # LL - I have no acess of this function. 
+
+
+        # LL - I have no acess of this function.
         #We use a generic one located in the landsat folder.
-        
+
         # cloud_mask = openet.core.common.landsat_c2_sr_cloud_mask(
         #     sr_image, **cloudmask_args)
 
@@ -499,7 +498,7 @@ class Image():
                         lai=self.lai,                    
                         meteo_inst_source= self._meteorology_source_inst,
                         meteo_daily_source=self._meteorology_source_daily,
-                        elev_product=self.elev_source,
+                        elev_product=self._elev_source,
                         ndvi_cold=self._ndvi_cold,
                         ndvi_hot=self._ndvi_hot,
                         lst_cold=self._lst_cold,
@@ -515,52 +514,60 @@ class Image():
 
         return et.set(self._properties)
 
+    # @lazy_property
+    # def et_fraction(self):
+    #
+    #     et_fr = model.et_fraction(
+    #         self.image,
+    #         self._time_start,
+    #         self.et,
+    #         self._et_reference_source, self._et_reference_band,
+    #         self._et_reference_factor,
+    #     )
+    #
+    #     return et_fr.set(self._properties)
+
+    @lazy_property
+    def et_reference(self):
+        """Reference ET for the image date"""
+        if utils.is_number(self._et_reference_source):
+            # Interpret numbers as constant images
+            # CGM - Should we use the ee_types here instead?
+            #   i.e. ee.ee_types.isNumber(self.et_reference_source)
+            et_reference_img = ee.Image.constant(self._et_reference_source)
+        elif type(self._et_reference_source) is str:
+            # Assume a string source is an image collection ID (not an image ID)
+            et_reference_coll = ee.ImageCollection(self._et_reference_source)\
+                .filterDate(self._start_date, self._end_date)\
+                .select([self._et_reference_band])
+            et_reference_img = ee.Image(et_reference_coll.first())
+            if self._et_reference_resample in ['bilinear', 'bicubic']:
+                et_reference_img = et_reference_img\
+                    .resample(self._et_reference_resample)
+        else:
+            raise ValueError('unsupported et_reference_source: {}'.format(
+                self._et_reference_source))
+
+        if self._et_reference_factor:
+            et_reference_img = et_reference_img.multiply(self._et_reference_factor)
+
+        # Map ETr values directly to the input (i.e. Landsat) image pixels
+        # The benefit of this is the ETr image is now in the same crs as the
+        #   input image.  Not all models may want this though.
+        # Note, doing this will cause the reference ET to be cloud masked.
+        # CGM - Should the output band name match the input ETr band name?
+        return self.ndvi.multiply(0).add(et_reference_img)\
+            .rename(['et_reference']).set(self._properties)
+
     @lazy_property
     def et_fraction(self):
-
-        et_fr = model.et_fraction(
-            self.image,
-            self._time_start,
-            self.et,
-            self._et_reference_source, self._et_reference_band,
-            self._et_reference_factor,
-        )
-
-        return et_fr.set(self._properties)
-
-    # @lazy_property
-    # def et_reference(self):
-    #     """Reference ET for the image date"""
-    #     if utils.is_number(self.et_reference_source):
-    #         # Interpret numbers as constant images
-    #         # CGM - Should we use the ee_types here instead?
-    #         #   i.e. ee.ee_types.isNumber(self.et_reference_source)
-    #         et_reference_img = ee.Image.constant(self.et_reference_source)
-    #     elif type(self.et_reference_source) is str:
-    #         # Assume a string source is an image collection ID (not an image ID)
-    #         et_reference_coll = ee.ImageCollection(self.et_reference_source)\
-    #             .filterDate(self._start_date, self._end_date)\
-    #             .select([self.et_reference_band])
-    #         et_reference_img = ee.Image(et_reference_coll.first())
-    #         if self.et_reference_resample in ['bilinear', 'bicubic']:
-    #             et_reference_img = et_reference_img\
-    #                 .resample(self.et_reference_resample)
-    #     else:
-    #         raise ValueError('unsupported et_reference_source: {}'.format(
-    #             self.et_reference_source))
-    #
-    #     if self.et_reference_factor:
-    #         et_reference_img = et_reference_img.multiply(self.et_reference_factor)
-    #
-    #     # Map ETr values directly to the input (i.e. Landsat) image pixels
-    #     # The benefit of this is the ETr image is now in the same crs as the
-    #     #   input image.  Not all models may want this though.
-    #     # Note, doing this will cause the reference ET to be cloud masked.
-    #     # CGM - Should the output band name match the input ETr band name?
-    #     return self.ndvi.multiply(0).add(et_reference_img)\
-    #         .rename(['et_reference']).set(self._properties)
+        """Fraction of reference ET (equivalent to the Kc)"""
+        return self.et.divide(self.et_reference) \
+            .rename(['et_fraction']).set(self._properties)
 
     # CGM - The mask band is currently needed for the time band
+    # If the model does not do any additional masking we might be able to
+    #   build the mask from the NDVI or QA band instead.
     @lazy_property
     def mask(self,):
         """Mask of all active pixels (based on the final et)"""
