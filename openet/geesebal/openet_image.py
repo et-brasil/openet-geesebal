@@ -1,7 +1,7 @@
-import datetime
-import math
-import pprint
-import re
+# import datetime
+# import math
+# import pprint
+# import re
 
 import ee
 
@@ -40,7 +40,6 @@ class Image():
             ndvi_hot=10,
             lst_cold=20,
             lst_hot=10,
-            reflectance_type='SR',
             **kwargs,
             ):
 
@@ -54,7 +53,6 @@ class Image():
                 ndvi, lai, savi, lst, emissivity, ndwi, albedo
             Image must have properties:
                 SUN_ELEVATION, system:id, system:index, system:time_start
-
         meteorology_source_inst : str, optional
             Instantaneous meteorology source collection ID.
             Collection supported:
@@ -81,7 +79,6 @@ class Image():
         Notes
         -----
         Standard percentiles are from Allen et al. (2013)
-
         """
 
         self.image = image
@@ -141,6 +138,7 @@ class Image():
     @classmethod
     def from_image_id(cls, image_id, **kwargs):
         """Constructs an GEESEBAL Image instance from an image ID
+
         Parameters
         ----------
         image_id : str
@@ -148,10 +146,12 @@ class Image():
             (i.e. 'LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716')
         kwargs
             Keyword arguments to pass through to model init.
+
         Returns
         -------
         new instance of Image class
         """
+
         # DEADBEEF - Should the supported image collection IDs and helper
         # function mappings be set in a property or method of the Image class?
         collection_methods = {
@@ -193,6 +193,7 @@ class Image():
         -------
         Image
         """
+
         sr_image = ee.Image(sr_image)
         # Use the SATELLITE property identify each Landsat type
         spacecraft_id = ee.String(sr_image.get('SATELLITE'))
@@ -286,20 +287,21 @@ class Image():
             landsat.lst(prep_image),
             landsat.emissivity(prep_image),
             landsat.ndwi(prep_image),
-            albedo
+            albedo,
         ])
 
         # Apply the cloud mask and add properties
-        input_image = input_image.set({'system:index': sr_image.get('system:index'),
-                  'system:time_start': sr_image.get('system:time_start'),
-                  'system:id': sr_image.get('system:id'),
-                  'SUN_ELEVATION':sun_elevation
-            })
+        input_image = input_image.set({
+            'system:index': sr_image.get('system:index'),
+            'system:time_start': sr_image.get('system:time_start'),
+            'system:id': sr_image.get('system:id'),
+            'SUN_ELEVATION':sun_elevation,
+        })
 
         # Instantiate the class
-        return cls(input_image, reflectance_type='SR', **kwargs)
+        return cls(input_image, **kwargs)
 
-    @classmethod #NOT ADAPTED YET <<-----
+    @classmethod
     def from_landsat_c2_sr(cls, sr_image, cloudmask_args={}, **kwargs):
         """Returns a GEESEBAL Image instance from a Landsat Collection 2 SR image
 
@@ -315,8 +317,8 @@ class Image():
         Returns
         -------
         Image
-
         """
+
         sr_image = ee.Image(sr_image)
 
         # Use the SPACECRAFT_ID property identify each Landsat type
@@ -405,7 +407,7 @@ class Image():
             landsat.savi(prep_image),
             landsat.emissivity(prep_image),
             landsat.ndwi(prep_image),
-            albedo
+            albedo,
         ])
 
         # Apply the cloud mask and add properties
@@ -413,21 +415,24 @@ class Image():
             .set({'system:index': sr_image.get('system:index'),
                   'system:time_start': sr_image.get('system:time_start'),
                   'system:id': sr_image.get('system:id'),
-                  'SUN_ELEVATION': sr_image.get('SUN_ELEVATION')
+                  'SUN_ELEVATION': sr_image.get('SUN_ELEVATION'),
             })
 
         # Instantiate the class
-        return cls(input_image, reflectance_type='SR', **kwargs)
+        return cls(input_image, **kwargs)
             
     def calculate(self, variables=['ndvi', 'lst', 'et', 'et_fraction']):
         """Return a multiband image of calculated variables
+
         Parameters
         ----------
         variables : list
+
         Returns
         -------
         ee.Image
         """
+
         output_images = []
         for v in variables:
             if v.lower() == 'et':
@@ -505,9 +510,8 @@ class Image():
                         geometry_image=self.geometry,
                         crs=self.crs,
                         transform=self.transform,
-                        coords=self.coords
-                        ).set(self._properties)
-
+                        coords=self.coords,
+                        )
 
         return et.set(self._properties)
 
@@ -519,7 +523,8 @@ class Image():
             self._time_start,
             self.et,
             self._et_reference_source, self._et_reference_band,
-            self._et_reference_factor)
+            self._et_reference_factor,
+        )
 
         return et_fr.set(self._properties)
 
@@ -557,17 +562,22 @@ class Image():
 
     # CGM - The mask band is currently needed for the time band
     @lazy_property
-    def mask(self):
+    def mask(self,):
         """Mask of all active pixels (based on the final et)"""
-        return self.et.multiply(0).add(1).updateMask(1) \
-            .rename(['mask']).set(self._properties).uint8()
+
+        mask = self.et.multiply(0).add(1).updateMask(1).uint8().rename(['mask'])
+
+        return  mask.set(self._properties)
 
     # CGM - The image class must have a "time" method for the interpolation
     # I'm not sure if it needs to be built from the active pixels mask
     #   or could be built from the NDVI or QA band instead.
     @lazy_property
-    def time(self):
+    def time(self,):
         """Return an image of the 0 UTC time (in milliseconds)"""
-        return self.mask \
+
+        time = self.mask \
             .double().multiply(0).add(utils.date_to_time_0utc(self._date)) \
-            .rename(['time']).set(self._properties)
+            .rename(['time'])
+
+        return time.set(self._properties)
