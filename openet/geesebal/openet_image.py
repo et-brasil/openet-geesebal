@@ -194,10 +194,11 @@ class Image():
         """
 
         sr_image = ee.Image(sr_image)
+
         # Use the SATELLITE property identify each Landsat type
         spacecraft_id = ee.String(sr_image.get('SATELLITE'))
+
         # Rename bands to generic names
-        # Rename thermal band "k" coefficients to generic names
         input_bands = ee.Dictionary({
             'LANDSAT_4': ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'B6', 'pixel_qa'],
             'LANDSAT_5': ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'B6', 'pixel_qa'],
@@ -206,40 +207,26 @@ class Image():
         })
         #output_bands = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'tir',
                         #'pixel_qa']
-        # TODO: Follow up with Simon about adding K1/K2 to SR collection
-        # Hardcode values for now
-        k1 = ee.Dictionary({
-            'LANDSAT_4': 607.76, 'LANDSAT_5': 607.76,
-            'LANDSAT_7': 666.09, 'LANDSAT_8': 774.8853})
-        k2 = ee.Dictionary({
-            'LANDSAT_4': 1260.56, 'LANDSAT_5': 1260.56,
-            'LANDSAT_7': 1282.71, 'LANDSAT_8': 1321.0789})
 
         #prep_image = sr_image\
            # .select(input_bands.get(spacecraft_id), output_bands)\
            # .multiply([0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.1, 1])\
-           # .set({'k1_constant': ee.Number(k1.get(spacecraft_id)),
-                  #'k2_constant': ee.Number(k2.get(spacecraft_id))})
 
-        def prep_image_l8(sr_image,input_bands,spacecraft_id,k1,k2):
+        def prep_image_l8(sr_image,input_bands,spacecraft_id):
 
              prep_image = sr_image\
                 .select(input_bands.get(spacecraft_id),['ultra_blue','blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'tir',
                         'pixel_qa'])\
-                .multiply([0.0001,0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.1, 1])\
-                .set({'k1_constant': ee.Number(k1.get(spacecraft_id)),
-                      'k2_constant': ee.Number(k2.get(spacecraft_id))})
+                .multiply([0.0001,0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.1, 1])
 
              return prep_image
 
-        def prep_image_l457(sr_image,input_bands,spacecraft_id,k1,k2):
+        def prep_image_l457(sr_image,input_bands,spacecraft_id):
 
             prep_image = sr_image\
                 .select(input_bands.get(spacecraft_id),['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'tir',
                         'pixel_qa'])\
-                .multiply([0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.1, 1])\
-                .set({'k1_constant': ee.Number(k1.get(spacecraft_id)),
-                      'k2_constant': ee.Number(k2.get(spacecraft_id))})
+                .multiply([0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.1, 1])
 
             return prep_image
 
@@ -247,8 +234,8 @@ class Image():
         #on the other hand, ee.Algorithms.If return 1 if condition is true
 
         prep_image=ee.Image(ee.Algorithms.If(spacecraft_id.compareTo(ee.String('LANDSAT_8')),
-                                    prep_image_l457(sr_image,input_bands,spacecraft_id,k1,k2),
-                                    prep_image_l8(sr_image,input_bands,spacecraft_id,k1,k2)))
+                                    prep_image_l457(sr_image,input_bands,spacecraft_id),
+                                    prep_image_l8(sr_image,input_bands,spacecraft_id)))
 
         albedo=ee.Algorithms.If(spacecraft_id.compareTo(ee.String('LANDSAT_8')),
                                 landsat.albedo_l457(prep_image),landsat.albedo_l8(prep_image))
@@ -259,22 +246,9 @@ class Image():
         #calc sun elevation
         sun_elevation=ee.Number(90).subtract(ee.Number(sr_image.get('SOLAR_ZENITH_ANGLE')))
 
-        # k1 = ee.Dictionary({
-        #     'LANDSAT_4': 'K1_CONSTANT_BAND_6',
-        #     'LANDSAT_5': 'K1_CONSTANT_BAND_6',
-        #     'LANDSAT_7': 'K1_CONSTANT_BAND_6_VCID_1',
-        #     'LANDSAT_8': 'K1_CONSTANT_BAND_10'})
-        # k2 = ee.Dictionary({
-        #     'LANDSAT_4': 'K2_CONSTANT_BAND_6',
-        #     'LANDSAT_5': 'K2_CONSTANT_BAND_6',
-        #     'LANDSAT_7': 'K2_CONSTANT_BAND_6_VCID_1',
-        #     'LANDSAT_8': 'K2_CONSTANT_BAND_10'})
         # prep_image = sr_image\
         #     .select(input_bands.get(spacecraft_id), output_bands)\
-        #     .multiply([0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.1, 1])\
-        #     .set({'k1_constant': ee.Number(sr_image.get(k1.get(spacecraft_id))),
-        #           'k2_constant': ee.Number(sr_image.get(k2.get(spacecraft_id)))})
-
+        #     .multiply([0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.1, 1])
 
           #  sr_image, **cloudmask_args)
 
