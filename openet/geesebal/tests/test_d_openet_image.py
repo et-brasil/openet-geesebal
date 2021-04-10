@@ -20,7 +20,8 @@ SCENE_DATE = SCENE_DT.strftime('%Y-%m-%d')
 SCENE_DOY = int(SCENE_DT.strftime('%j'))
 SCENE_0UTC_DT = datetime.datetime.strptime(SCENE_DATE, '%Y-%m-%d')
 SUN_ELEVATION = 64.3
-TEST_POINT = [-120.113, 36.336]
+TEST_POINT = (-121.5265, 38.7399)
+# TEST_POINT = (-120.113, 36.336)
 
 
 # # Should these be test fixtures instead?
@@ -54,14 +55,26 @@ TEST_POINT = [-120.113, 36.336]
 def default_image(albedo=0.2, emissivity=0.964, lai=1.4, lst=300,
                   ndvi=0.5, ndwi=-0.1, savi=0.5):
     # First construct a fake 'prepped' input image
-    return ee.Image.constant([albedo, emissivity, lai, lst, ndvi, ndwi, savi]) \
+    # Map the values to an actual Landsat image
+    return ee.Image(COLL_ID + SCENE_ID) \
+        .select([0, 1, 2, 3, 4, 5, 6]) \
+        .multiply(0).double() \
+        .add(ee.Image.constant([albedo, emissivity, lai, lst, ndvi, ndwi, savi])) \
         .rename(['albedo', 'emissivity', 'lai', 'lst', 'ndvi', 'ndwi', 'savi']) \
         .set({
             'system:index': SCENE_ID,
             'system:time_start': SCENE_TIME,
             'system:id': COLL_ID + SCENE_ID,
             'SUN_ELEVATION': SUN_ELEVATION,
-    })
+        })
+    # return ee.Image.constant([albedo, emissivity, lai, lst, ndvi, ndwi, savi]) \
+    #     .rename(['albedo', 'emissivity', 'lai', 'lst', 'ndvi', 'ndwi', 'savi']) \
+    #     .set({
+    #         'system:index': SCENE_ID,
+    #         'system:time_start': SCENE_TIME,
+    #         'system:id': COLL_ID + SCENE_ID,
+    #         'SUN_ELEVATION': SUN_ELEVATION,
+    # })
 
 
 # Setting etr_source and etr_band on the default image to simplify testing
@@ -141,22 +154,26 @@ def test_Image_ndvi_properties():
     assert output['properties']['image_id'] == COLL_ID + SCENE_ID
 
 
-def test_Image_ndvi_defaults(expected=0.5, tol=0.001):
-    output = utils.constant_image_value(ee.Image(default_image_obj().ndvi))
+def test_Image_ndvi_defaults(expected=0.1, tol=0.001):
+    output = utils.point_image_value(
+        ee.Image(default_image_obj(ndvi=expected).ndvi), TEST_POINT)
     assert abs(output - expected) <= tol
 
 
-# def test_Image_et_properties():
-#     """Test band name and if properties are set on the image"""
-#     output = utils.getinfo(default_image_obj().et)
-#     assert output['bands'][0]['id'] == 'et'
-#     assert output['properties']['system:index'] == SCENE_ID
-#     assert output['properties']['system:time_start'] == SCENE_TIME
-#     assert output['properties']['image_id'] == COLL_ID + SCENE_ID
-#
-#
-# def test_Image_et_defaults(expected=6.128, tol=0.001):
-#     output = utils.constant_image_value(ee.Image(default_image_obj().et))
+def test_Image_et_properties():
+    """Test band name and if properties are set on the image"""
+    output = utils.getinfo(default_image_obj().et)
+    assert output['bands'][0]['id'] == 'et'
+    assert output['properties']['system:index'] == SCENE_ID
+    assert output['properties']['system:time_start'] == SCENE_TIME
+    assert output['properties']['image_id'] == COLL_ID + SCENE_ID
+
+
+# CGM - This test probably won't work since running the model with an image
+#   that is constant is going to work
+# def test_Image_et_defaults(expected=0, tol=0.001):
+#     output = utils.point_image_value(
+#         ee.Image(default_image_obj().et), TEST_POINT)
 #     assert abs(output - expected) <= tol
 
 
@@ -172,10 +189,10 @@ def test_Image_et_reference_properties():
 @pytest.mark.parametrize(
     'source, band, factor, xy, expected',
     [
-        ['IDAHO_EPSCOR/GRIDMET', 'etr', 1, TEST_POINT, 12.5],
-        ['IDAHO_EPSCOR/GRIDMET', 'etr', 0.85, TEST_POINT, 12.5 * 0.85],
+        ['IDAHO_EPSCOR/GRIDMET', 'etr', 1, TEST_POINT, 10.9],
+        ['IDAHO_EPSCOR/GRIDMET', 'etr', 0.85, TEST_POINT, 10.9 * 0.85],
         ['projects/earthengine-legacy/assets/projects/climate-engine/cimis/daily',
-         'ETr_ASCE', 1, TEST_POINT, 11.7839],
+         'ETr_ASCE', 1, TEST_POINT, 10.125],
         [10, 'FOO', 1, TEST_POINT, 10.0],
         [10, 'FOO', 0.85, TEST_POINT, 8.5],
     ]
@@ -189,41 +206,41 @@ def test_Image_et_reference_sources(source, band, factor, xy, expected,
     assert abs(output - expected) <= tol
 
 
-# def test_Image_et_fraction_properties():
-#     """Test if properties are set on the ET fraction image"""
-#     output =  utils.getinfo(default_image_obj().et_fraction)
-#     assert output['bands'][0]['id'] == 'et_fraction'
-#     assert output['properties']['system:index'] == SCENE_ID
-#     assert output['properties']['system:time_start'] == SCENE_TIME
-#     assert output['properties']['image_id'] == COLL_ID + SCENE_ID
-#
-#
-# def test_Image_mask_properties():
-#     """Test if properties are set on the time image"""
-#     output = utils.getinfo(default_image_obj().mask)
-#     assert output['bands'][0]['id'] == 'mask'
-#     assert output['properties']['system:index'] == SCENE_ID
-#     assert output['properties']['system:time_start'] == SCENE_TIME
-#     assert output['properties']['image_id'] == COLL_ID + SCENE_ID
-#
-#
+def test_Image_et_fraction_properties():
+    """Test if properties are set on the ET fraction image"""
+    output =  utils.getinfo(default_image_obj().et_fraction)
+    assert output['bands'][0]['id'] == 'et_fraction'
+    assert output['properties']['system:index'] == SCENE_ID
+    assert output['properties']['system:time_start'] == SCENE_TIME
+    assert output['properties']['image_id'] == COLL_ID + SCENE_ID
+
+
+def test_Image_mask_properties():
+    """Test if properties are set on the time image"""
+    output = utils.getinfo(default_image_obj().mask)
+    assert output['bands'][0]['id'] == 'mask'
+    assert output['properties']['system:index'] == SCENE_ID
+    assert output['properties']['system:time_start'] == SCENE_TIME
+    assert output['properties']['image_id'] == COLL_ID + SCENE_ID
+
+
 # def test_Image_mask_values():
 #     assert utils.constant_image_value(default_image_obj().mask) == 1
-#
-#
-# def test_Image_time_properties():
-#     """Test if properties are set on the time image"""
-#     output = utils.getinfo(default_image_obj().time)
-#     assert output['bands'][0]['id'] == 'time'
-#     assert output['properties']['system:index'] == SCENE_ID
-#     assert output['properties']['system:time_start'] == SCENE_TIME
-#     assert output['properties']['image_id'] == COLL_ID + SCENE_ID
-#
-#
-# def test_Image_time_values():
-#     """The time band should have the 0 UTC time in it for interpolation"""
-#     assert utils.constant_image_value(
-#         default_image_obj().time) == utils.millis(SCENE_0UTC_DT)
+
+
+def test_Image_time_properties():
+    """Test if properties are set on the time image"""
+    output = utils.getinfo(default_image_obj().time)
+    assert output['bands'][0]['id'] == 'time'
+    assert output['properties']['system:index'] == SCENE_ID
+    assert output['properties']['system:time_start'] == SCENE_TIME
+    assert output['properties']['image_id'] == COLL_ID + SCENE_ID
+
+
+def test_Image_time_values():
+    """The time band should have the 0 UTC time in it for interpolation"""
+    output = utils.point_image_value(default_image_obj().time, TEST_POINT)
+    assert output == utils.millis(SCENE_0UTC_DT)
 
 
 # def test_Image_calculate_properties():
@@ -288,36 +305,38 @@ def test_Image_from_landsat_c1_sr_default_image():
 )
 def test_Image_from_landsat_c1_sr_landsat_image(image_id):
     """Test instantiating the class from a real Landsat images"""
-    output = utils.getinfo(geesebal.Image.from_landsat_c1_sr(ee.Image(image_id)).ndvi)
+    output = utils.getinfo(geesebal.Image.from_landsat_c1_sr(
+        ee.Image(image_id)).ndvi)
     assert output['properties']['system:index'] == image_id.split('/')[-1]
 
 
+# CGM - I'm not sure why these don't raise exceptions
 # def test_Image_from_landsat_c1_sr_exception():
 #     """Test instantiating the class for an invalid image ID"""
 #     with pytest.raises(Exception):
 #         utils.getinfo(geesebal.Image.from_landsat_c1_sr(ee.Image('DEADBEEF'))._index)
 
 
-# def test_Image_from_landsat_c2_sr_default_image():
-#     """Test that the classmethod is returning a class object"""
-#     output = geesebal.Image.from_landsat_c2_sr(
-#         ee.Image('LANDSAT/LC08/C02/T1_L2/LC08_038031_20130828'))
-#     assert type(output) == type(default_image_obj())
+def test_Image_from_landsat_c2_sr_default_image():
+    """Test that the classmethod is returning a class object"""
+    output = geesebal.Image.from_landsat_c2_sr(
+        ee.Image('LANDSAT/LC08/C02/T1_L2/LC08_038031_20130828'))
+    assert type(output) == type(default_image_obj())
 
 
-# @pytest.mark.parametrize(
-#     'image_id',
-#     [
-#         'LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716',
-#         'LANDSAT/LE07/C02/T1_L2/LE07_044033_20170708',
-#         'LANDSAT/LT05/C02/T1_L2/LT05_044033_20110716',
-#         # 'LANDSAT/LT04/C02/T1_L2/LT04_044033_19830812',
-#     ]
-# )
-# def test_Image_from_landsat_c2_sr_landsat_image(image_id):
-#     """Test instantiating the class from a real Landsat images"""
-#     output = utils.getinfo(geesebal.Image.from_landsat_c2_sr(ee.Image(image_id)).ndvi)
-#     assert output['properties']['system:index'] == image_id.split('/')[-1]
+@pytest.mark.parametrize(
+    'image_id',
+    [
+        'LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716',
+        'LANDSAT/LE07/C02/T1_L2/LE07_044033_20170708',
+        'LANDSAT/LT05/C02/T1_L2/LT05_044033_20110716',
+        # 'LANDSAT/LT04/C02/T1_L2/LT04_044033_19830812',
+    ]
+)
+def test_Image_from_landsat_c2_sr_landsat_image(image_id):
+    """Test instantiating the class from a real Landsat images"""
+    output = utils.getinfo(geesebal.Image.from_landsat_c2_sr(ee.Image(image_id)).ndvi)
+    assert output['properties']['system:index'] == image_id.split('/')[-1]
 
 
 # def test_Image_from_landsat_c2_sr_exception():
@@ -326,22 +345,22 @@ def test_Image_from_landsat_c1_sr_landsat_image(image_id):
 #         utils.getinfo(geesebal.Image.from_landsat_c2_sr(ee.Image('DEADBEEF'))._index)
 
 
-# @pytest.mark.parametrize(
-#     'image_id',
-#     [
-#         'LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716',
-#         'LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716',
-#     ]
-# )
-# def test_Image_from_image_id(image_id):
-#     """Test instantiating the class using the from_image_id method"""
-#     output = utils.getinfo(geesebal.Image.from_image_id(image_id).NDVI)
-#     assert output['properties']['system:index'] == image_id.split('/')[-1]
-#     assert output['properties']['image_id'] == image_id
-#
-#
-# def test_Image_from_method_kwargs():
-#     """Test that the init parameters can be passed through the helper methods"""
-#     assert geesebal.Image.from_landsat_c1_sr(
-#         'LANDSAT/LC08/C01/T1_SR/LC08_042035_20150713',
-#         elev_source='FOO').elev_source == 'FOO'
+@pytest.mark.parametrize(
+    'image_id',
+    [
+        'LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716',
+        'LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716',
+    ]
+)
+def test_Image_from_image_id(image_id):
+    """Test instantiating the class using the from_image_id method"""
+    output = utils.getinfo(geesebal.Image.from_image_id(image_id).ndvi)
+    assert output['properties']['system:index'] == image_id.split('/')[-1]
+    assert output['properties']['image_id'] == image_id
+
+
+def test_Image_from_method_kwargs():
+    """Test that the init parameters can be passed through the helper methods"""
+    assert geesebal.Image.from_landsat_c1_sr(
+        'LANDSAT/LC08/C01/T1_SR/LC08_042035_20150713',
+        elev_source='FOO')._elev_source == 'FOO'
