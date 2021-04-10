@@ -17,7 +17,7 @@ def fipar(landsat_image):
 
 def lai(landsat_image):
     """Leaf area index"""
-    return ee.Image(landsat_image).expression('log(1 - fIPAR)/(KPAR)', {
+    return ee.Image(landsat_image).expression('-log(1 - fIPAR)/(KPAR)', {
             'fIPAR': fipar(ee.Image(landsat_image)),
             'KPAR': ee.Number(0.5)
         }).rename('lai')
