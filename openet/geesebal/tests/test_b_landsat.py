@@ -23,7 +23,8 @@ def landsat_image(ultra_blue=0.2, blue=0.2, green=0.2, red=0.2, nir=0.7,
     """Construct a fake Landsat 8 SR image with renamed bands"""
     return ee.Image.constant([ultra_blue, blue, green, red, nir, swir1, swir2, tir]) \
         .rename(['ultra_blue', 'blue', 'green', 'red', 'nir',
-                 'swir1', 'swir2', 'tir']) \
+                 'swir1', 'swir2', 'tir'])
+    #     .set({'SPACECRAFT_ID': 'LANDSAT_8'})
 
 
 @pytest.mark.parametrize(
