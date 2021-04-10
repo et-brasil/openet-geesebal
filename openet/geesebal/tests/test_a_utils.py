@@ -14,25 +14,27 @@ def test_constant_image_value(tol=0.000001):
     expected = 10.123456789
     input_img = ee.Image.constant(expected)
     output = utils.constant_image_value(input_img)
-    assert abs(output['constant'] - expected) <= tol
+    assert abs(output - expected) <= tol
 
 
 def test_point_image_value(tol=0.001):
     expected = 2364.351
     output = utils.point_image_value(ee.Image('USGS/NED'), [-106.03249, 37.17777])
-    assert abs(output['elevation'] - expected) <= tol
+    assert abs(output - expected) <= tol
 
 
 def test_point_coll_value(tol=0.001):
     expected = 2364.351
     output = utils.point_coll_value(
         ee.ImageCollection([ee.Image('USGS/NED')]), [-106.03249, 37.17777])
+    import pprint
+    pprint.pprint(output)
     assert abs(output['elevation']['2012-04-04'] - expected) <= tol
 
 
 def test_c_to_k(c=20, k=293.15, tol=0.000001):
     output = utils.constant_image_value(utils.c_to_k(ee.Image.constant(c)))
-    assert abs(output['constant'] - k) <= tol
+    assert abs(output - k) <= tol
 
 
 @pytest.mark.parametrize(
@@ -40,11 +42,8 @@ def test_c_to_k(c=20, k=293.15, tol=0.000001):
     [
         ['2015-07-13T18:33:39', 1436745600000],
         ['2015-07-13T00:00:00', 1436745600000],
-
     ]
 )
-
-
 def test_date_to_time_0utc(input, expected):
     input_img = ee.Date(input)
     assert utils.getinfo(utils.date_to_time_0utc(input_img)) == expected
