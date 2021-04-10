@@ -30,10 +30,7 @@ def lai(landsat_image):
     ?
 
     """
-
-    # CGM - Added the -1 multiplier
-    #   These LAI values seem "low" though
-    return ee.Image(landsat_image).expression('-1 * log(1 - fIPAR) / KPAR', {
+    return ee.Image(landsat_image).expression('-log(1 - fIPAR) / (KPAR)', {
             'fIPAR': fipar(ee.Image(landsat_image)),
             'KPAR': ee.Number(0.5)
         }).rename('lai')
