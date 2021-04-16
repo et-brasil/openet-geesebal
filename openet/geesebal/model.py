@@ -73,13 +73,13 @@ def meteorology(image_region,time_start,meteo_inst_source,meteo_daily_source):
     next_time=time_start.add(2*60*60*1000)
 
     meteorology_daily = (ee.ImageCollection(meteo_daily_source)\
-                         .filter(ee.Filter.date(ee.Date(time_start),ee.Date(time_start).advance(1,'day'))))
+                         .filter(ee.Filter.date(ee.Date(time_start).advance(-1,'day'),ee.Date(time_start))))
 
     previous_image=(meteorology_inst_collection.filter(ee.Filter.date(previous_time,time_start))
                       .limit(1, 'system:time_start', False).first())
 
     next_image=(meteorology_inst_collection.filter(ee.Filter.date(time_start,next_time))
-                      .limit(1, 'system:time_start', False).first())
+                      .limit(1, 'system:time_start', True).first())
 
     image_previous_time= ee.Number(previous_image.get('system:time_start'))
 
