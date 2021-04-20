@@ -28,7 +28,7 @@ def et(image, ndvi, ndwi, lst, albedo, lai, meteo_inst_source, meteo_daily_sourc
     # METEOROLOGY PARAMETERS - GRIDMET AND NLDAS
     tmin, tmax, tair, ux, rh, rso_inst, rso24h = meteorology(
         image, time_start, meteo_inst_source, meteo_daily_source
-    ) #<----LOOK AFTER
+    )
 
     # SRTM DATA ELEVATION
     dem_product = ee.Image(elev_product)
@@ -234,9 +234,10 @@ def cos_terrain(landsat_image, time_start, dem, hour, minuts, coords):
 
     # COS ZENITH ANGLE SUN ELEVATION #ALLEN ET AL. (2006)
     # TODO: CGM Check if the .sin().asin() in delta is intentional
+    # LL: .asin() in delta is from the equation, however was in the wrong location. (eq: delta=arcsin(sin(23.45*degree2rad)*sin(B*degree2rad))
     slope_aspect = ee.Terrain.products(dem)
     B = ee.Number(360).divide(ee.Number(365)).multiply(doy.subtract(ee.Number(81)))
-    delta = ee.Image(ee.Number(23.45).multiply(degree2radian).sin().asin().multiply(B.multiply(degree2radian).sin()))
+    delta = ee.Image((ee.Number(23.45).multiply(degree2radian).sin().multiply(B.multiply(degree2radian).sin())).asin())
     s = slope_aspect.select('slope').multiply(degree2radian)
     gamma = slope_aspect.select('aspect').subtract(180).multiply(degree2radian)
     phi = coords.select('latitude').multiply(degree2radian)
@@ -417,15 +418,6 @@ def cold_pixel(landsat_image, ndvi, ndwi, lst_dem, year, ndvi_cold, lst_cold,
     c_lst_cold20 = i_cold_lst.updateMask(image.select('lst_nw').gte(200))
     c_lst_cold20_int = c_lst_cold20.select('lst_nw').int().rename('int')
     c_lst_cold20 = c_lst_cold20.addBands(c_lst_cold20_int)
-
-    # TODO: CGM Check if n_med_lst_cold20 and med_lst_cold20 are needed
-    #   They don't seem to be used anywhere below
-    med_lst_cold20 = c_lst_cold20.select('lst_nw').reduceRegion(
-        reducer=ee.Reducer.median(),
-        geometry=geometry_image,
-        scale=30,
-        maxPixels=1e9)
-    n_med_lst_cold20 = ee.Number(med_lst_cold20.get('lst_nw'))
 
     sum_final_cold_pix = c_lst_cold20.select('int').reduceRegion(
         reducer=ee.Reducer.sum(),
@@ -678,7 +670,7 @@ def sensible_heat_flux(landsat_image, savi, ux, rh, rad_24h,
     p_hot_pix = ee.Geometry.Point([n_long_hot, n_lat_hot])
 
     # Momentum roughness length (zom) at the weather station:
-    n_zom = n_veg_hight.multiply(0.12) # //% at the weather station
+    n_zom = n_veg_hight.multiply(0.12)
 
     # Friction velocity at the weather station
     i_ufric_ws = landsat_image.expression(
@@ -716,9 +708,6 @@ def sensible_heat_flux(landsat_image, savi, ux, rh, rad_24h,
         '(log(z2 / z1)) / (i_ufric * 0.41)',
         {'z2': z2, 'z1': z1, 'i_ufric': i_ufric},
     ).rename(['rah'])
-
-    # CGM - This variable isn't used
-    i_rah_first = i_rah.rename('rah_first')
 
     n_ro_hot= ee.Number(-0.0046).multiply(n_Ts_hot).add(ee.Number(2.5538))
 
@@ -772,7 +761,7 @@ def sensible_heat_flux(landsat_image, savi, ux, rh, rad_24h,
             'i_lst_med - i_dT_int', {'i_lst_med': lst, 'i_dT_int': i_dT_int})
 
         # ro (ρ) - air density (kg/m3)
-        # // ro=-0.0046.*Ta+2.5538
+        # ro=-0.0046.*Ta+2.5538
         i_ro = i_Ta.expression('(-0.0046 * i_Ta) + 2.5538', {'i_Ta': i_Ta})
 
         # Sensible heat flux (H) for each pixel - iteration
@@ -817,11 +806,10 @@ def sensible_heat_flux(landsat_image, savi, ux, rh, rad_24h,
         )
 
         # Stability corrections for unstable conditions
-        # TODO: CGM check if this can be changed to math.pi
         i_psimu_200 = i_x200.expression(
             '2 * log((1 + i_x200) / 2) + log((1 + i_x200 ** 2) / 2) - '
             '2 * atan(i_x200) + 0.5 * pi',
-            {'i_x200': i_x200, 'pi': ee.Number(3.14159265)},
+            {'i_x200': i_x200, 'pi': ee.Number(math.pi)},
         )
         i_psihu_2 = i_x2.expression(
             '2 * log((1 + i_x2 ** 2) / 2)', {'i_x2': i_x2})
@@ -834,16 +822,6 @@ def sensible_heat_flux(landsat_image, savi, ux, rh, rad_24h,
         i_psim_200 = i_psim_200.where(i_L_int.eq(0), 0)
         i_psih_2 = i_psih_2.where(i_L_int.eq(0), 0)
         i_psih_01 = i_psih_01.where(i_L_int.eq(0), 0)
-
-        # CGM - These variables aren't used anywhere?
-        if n == 1:
-            i_psim_200_exp = i_psim_200
-            i_psih_2_exp = i_psih_2
-            i_psih_01_exp = i_psih_01
-            i_L_int_exp = i_L_int
-            i_H_int_exp = i_H_int
-            i_dT_int_exp = i_dT_int
-            i_rah_exp = i_rah
 
         # Corrected value for the friction velocity (u_asterisk)
         # u_asterisk=(u200.*0.41)./(log(hight./zom_pixel)-psi_m200)
