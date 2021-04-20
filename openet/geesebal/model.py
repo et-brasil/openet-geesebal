@@ -139,14 +139,14 @@ def meteorology(image_region,time_start,meteo_inst_source,meteo_daily_source):
     #ACTUAL VAPOR PRESSURE [KPA]
     ea=p_med.expression('(1/0.622)*Q*P',{
             'Q': q_med,
-            'P':p_med}).rename('ea');
+            'P':p_med}).rename('ea')
 
     #SATURATED VAPOR PRESSURE [KPA]
     esat=tair_C.expression('0.6108*(exp((17.27*T_air)/(T_air+237.3)))',{
-        'T_air':tair_C}).rename('esat');
+        'T_air':tair_C}).rename('esat')
 
     #RELATIVE HUMIDITY (%)
-    RH=ea.divide(esat).multiply(100).rename('RH');
+    RH=ea.divide(esat).multiply(100).rename('RH')
 
     #Resample
 
@@ -324,8 +324,8 @@ def lc_mask(landsat_image,year,geometry_image):
     #CONDITIONS
     year_condition=ee.Algorithms.If(ee.Number(year).lte(2007),2008,year)
 
-    start = ee.Date.fromYMD(year_condition, 1, 1);
-    end = ee.Date.fromYMD(year_condition, 12, 31);
+    start = ee.Date.fromYMD(year_condition, 1, 1)
+    end = ee.Date.fromYMD(year_condition, 12, 31)
 
     #select classification corresponding to the year of the image
     lc = ee.ImageCollection('USDA/NASS/CDL').select('cropland')\
@@ -340,9 +340,9 @@ def lc_mask(landsat_image,year,geometry_image):
     crop2 = crop2.where(crop2, 1).unmask(0)
 
     #land cover mask - total croplands
-    lc_mask = crop1.add(crop2);
+    lc_mask = crop1.add(crop2)
 
-    lc_mask = lc_mask.updateMask(lc_mask.eq(1));
+    lc_mask = lc_mask.updateMask(lc_mask.eq(1))
 
     count_land_cover_pixels = lc_mask.rename('land_cover_pixels').reduceRegion(
         reducer=ee.Reducer.count(),
@@ -402,7 +402,7 @@ def cold_pixel(landsat_image,ndvi,ndwi,lst_dem,year,ndvi_cold,lst_cold,geometry_
       geometry= geometry_image,
       scale= 30,
       maxPixels= 1e9)
-  n_med_lst_cold20 = ee.Number(med_lst_cold20.get('lst_nw'));
+  n_med_lst_cold20 = ee.Number(med_lst_cold20.get('lst_nw'))
 
   sum_final_cold_pix = c_lst_cold20.select('int').reduceRegion(
         reducer=  ee.Reducer.sum(),
@@ -412,7 +412,7 @@ def cold_pixel(landsat_image,ndvi,ndwi,lst_dem,year,ndvi_cold,lst_cold,geometry_
   n_sum_final_cold_pix = ee.Number(sum_final_cold_pix.get('int'))
 
   def function_def_pixel(f):
-      return f.setGeometry(ee.Geometry.Point([f.get('longitude'), f.get('latitude')]));
+      return f.setGeometry(ee.Geometry.Point([f.get('longitude'), f.get('latitude')]))
   #Define Cold Pixel (random)
   fc_cold_pix = c_lst_cold20.stratifiedSample(1, "int", geometry_image, 30).map(function_def_pixel)
   n_Ts_cold = ee.Number(fc_cold_pix.aggregate_first('lst_nw'))
@@ -558,17 +558,17 @@ def fexp_hot_pixel(landsat_image,time_start,ndvi,ndwi,lst_dem,rn,g,year,ndvi_hot
       geometry= geometry_image,
       scale= 30,
       maxPixels=1e9,
-    );
+    )
   n_perc_low_NDVI = ee.Number(d_perc_down_ndvi.get('post_ndvi'))
 
-  i_low_NDVI = image.updateMask(land_cover_mask).updateMask(image.select('post_ndvi').lte(n_perc_low_NDVI));
+  i_low_NDVI = image.updateMask(land_cover_mask).updateMask(image.select('post_ndvi').lte(n_perc_low_NDVI))
 
   d_perc_top_lst = i_low_NDVI.updateMask(land_cover_mask).select('lst_neg').reduceRegion(
       reducer=ee.Reducer.percentile([lst_hot]),
       geometry= geometry_image,
       scale= 30,
       maxPixels= 1e9,
-    );
+    )
   n_perc_top_lst = ee.Number(d_perc_top_lst.get('lst_neg'))
 
   i_top_LST = i_low_NDVI.updateMask(land_cover_mask).updateMask(i_low_NDVI.select('lst_neg').lte(n_perc_top_lst))
@@ -581,7 +581,7 @@ def fexp_hot_pixel(landsat_image,time_start,ndvi,ndwi,lst_dem,rn,g,year,ndvi_hot
       geometry= geometry_image,
       scale= 30,
       maxPixels= 1e9,)
-  n_sum_final_hot_pix = ee.Number(sum_final_hot_pix.get('int'));
+  n_sum_final_hot_pix = ee.Number(sum_final_hot_pix.get('int'))
 
   #PRECIPITATION CORRECTION
   gridmet=ee.ImageCollection("IDAHO_EPSCOR/GRIDMET")
@@ -611,7 +611,7 @@ def fexp_hot_pixel(landsat_image,time_start,ndvi,ndwi,lst_dem,rn,g,year,ndvi_hot
      return f.setGeometry(ee.Geometry.Point([f.get('longitude'), f.get('latitude')]))
   #Define Hot Pixel (random)
   fc_hot_pix = c_lst_hotpix.stratifiedSample(1, "int", geometry_image, 30).map(function_def_pixel)
-  n_Ts_hot = ee.Number(fc_hot_pix.aggregate_first('lst_nw')); # //transforma de objeto para numero
+  n_Ts_hot = ee.Number(fc_hot_pix.aggregate_first('lst_nw')) # //transforma de objeto para numero
   n_long_hot = ee.Number(fc_hot_pix.aggregate_first('longitude'))
   n_lat_hot = ee.Number(fc_hot_pix.aggregate_first('latitude'))
   n_ndvi_hot = ee.Number(fc_hot_pix.aggregate_first('ndvi'))
@@ -627,7 +627,7 @@ def fexp_hot_pixel(landsat_image,time_start,ndvi,ndwi,lst_dem,rn,g,year,ndvi_hot
     'g': n_G_hot,
     'ndvi': n_ndvi_hot,
     'sum': n_sum_final_hot_pix,
-  });
+  })
 
   return d_hot_pixel
 
@@ -691,8 +691,8 @@ def sensible_heat_flux(landsat_image,savi,ux,rh,rad_24h,ts_cold_number,d_hot_pix
               'n_K': n_K }).rename('u_fr')
 
     # Aerodynamic resistance to heat transport (rah)
-    z1= ee.Number(0.1);
-    z2= ee.Number(2);  #vegetation
+    z1= ee.Number(0.1)
+    z2= ee.Number(2)  #vegetation
     i_rah = i_ufric.expression(
       '(log(z2/z1))/(i_ufric*0.41)', {
               'z2' : z2,
@@ -752,7 +752,7 @@ def sensible_heat_flux(landsat_image,savi,ux,rh,rad_24h,ts_cold_number,d_hot_pix
     #ro (ρ) - air density (kg/m3)
         i_ro = i_Ta.expression(
     '(-0.0046 * i_Ta) + 2.5538', {
-            'i_Ta' : i_Ta}).rename('ro')  #// ro=-0.0046.*Ta+2.5538;
+            'i_Ta' : i_Ta}).rename('ro')  #// ro=-0.0046.*Ta+2.5538
     #Sensible heat flux (H) for each pixel - iteration
         i_H_int = i_dT_int.expression(
       '(i_ro*n_Cp*i_dT_int)/i_rah', {
@@ -770,7 +770,7 @@ def sensible_heat_flux(landsat_image,savi,ux,rh,rad_24h,ts_cold_number,d_hot_pix
                  'i_lst_med':lst,
                  'i_H_int':i_H_int }).rename('L')
     #Stability corrections for momentum and heat transport
-        img = landsat_image;
+        img = landsat_image
      #stability corrections for stable conditions
         i_psim_200 = img.expression(
                 '-5*(hight/i_L_int)', {'hight' : ee.Number(200),'i_L_int': i_L_int}).rename('psim_200')
@@ -802,7 +802,7 @@ def sensible_heat_flux(landsat_image,savi,ux,rh,rad_24h,ts_cold_number,d_hot_pix
         i_psih_2 = i_psih_2.where(i_L_int.lt(0), i_psihu_2)
         i_psih_01 = i_psih_01.where(i_L_int.lt(0), i_psihu_01)
         i_psim_200 = i_psim_200.where(i_L_int.eq(0), 0)
-        i_psih_2 = i_psih_2.where(i_L_int.eq(0), 0);
+        i_psih_2 = i_psih_2.where(i_L_int.eq(0), 0)
         i_psih_01 = i_psih_01.where(i_L_int.eq(0), 0)
         if n==1:
             i_psim_200_exp = i_psim_200
@@ -813,12 +813,12 @@ def sensible_heat_flux(landsat_image,savi,ux,rh,rad_24h,ts_cold_number,d_hot_pix
             i_dT_int_exp = i_dT_int
             i_rah_exp = i_rah
         #Corrected value for the friction velocity (u_asterisk)
-        #u_asterisk=(u200.*0.41)./(log(hight./zom_pixel)-psi_m200);
+        #u_asterisk=(u200.*0.41)./(log(hight./zom_pixel)-psi_m200)
         i_ufric = i_ufric.expression(
                 '(u200*0.41)/(log(hight/i_zom)-i_psim_200)',
                 {'u200' : i_u200,'hight': n_hight, 'i_zom':i_zom,'i_psim_200': i_psim_200}).rename('ufric_star')
         #Corrected value for the aerodinamic resistance to the heat transport (rah)
-        #rah=(log(z2/z1)-psi_h2+psi_h01)./(u_asterisk*0.41);
+        #rah=(log(z2/z1)-psi_h2+psi_h01)./(u_asterisk*0.41)
         i_rah = i_rah.expression(
                 '(log(z2/z1)-psi_h2+psi_h01)/(i_ufric*0.41)',
                 {'z2' : z2,'z1': z1, 'i_ufric':i_ufric, 'psi_h2':i_psih_2, 'psi_h01':i_psih_01}).rename('rah')
@@ -837,7 +837,7 @@ def sensible_heat_flux(landsat_image,savi,ux,rh,rad_24h,ts_cold_number,d_hot_pix
             n_rah_hot_old = n_rah_hot
             #insert each iteration value into a list
 
-        list_dif = list_dif.add(n_dif);
+        list_dif = list_dif.add(n_dif)
         list_coef_a = list_coef_a.add(n_coef_a)
         list_coef_b = list_coef_b.add(n_coef_b)
         list_dT_hot = list_dT_hot.add(n_dT_hot)
