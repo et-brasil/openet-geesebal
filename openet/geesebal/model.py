@@ -209,7 +209,7 @@ def cos_terrain(landsat_image,time_start,dem,hour,minuts,coords):
     dateStr = ee.Date(time_start)
 
     #DAY OF YEAR
-    doy = dateStr.getRelative('day', 'year')
+    doy = dateStr.getRelative('day', 'year').add(1)
 
     #DEGREE TO RADIAN
     degree2radian = 0.01745
@@ -261,7 +261,7 @@ def lst_correction(landsat_image,time_start,ndwi,lst,dem,tair,rh,sun_elevation,h
     dateStr = ee.Date(time_start)
 
     #DAY OF YEAR
-    doy = dateStr.getRelative('day', 'year')
+    doy = dateStr.getRelative('day', 'year').add(1)
     pi=ee.Number(math.pi)
 
     #INVERSE RELATIVE  DISTANCE EARTH-SUN
@@ -484,7 +484,7 @@ def radiation_24h(image,time_start,tmax,tmin,elev,rso24h):
 
     dateStr = ee.Date(time_start)
 
-    doy = dateStr.getRelative('day', 'year')
+    doy = dateStr.getRelative('day', 'year').add(1)
     pi=ee.Number(math.pi)
     #Relative Earth–Sun distance
     dr = image.expression(
