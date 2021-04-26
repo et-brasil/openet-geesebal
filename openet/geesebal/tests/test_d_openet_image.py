@@ -137,7 +137,7 @@ def test_Image_init_default_parameters():
     assert m._ndvi_cold == 5
     assert m._ndvi_hot == 10
     assert m._lst_cold == 20
-    assert m._lst_hot == 10
+    assert m._lst_hot == 20
     # assert m._et_reference_source == None
     # assert m._et_reference_band == None
     # assert m._et_reference_factor == None
