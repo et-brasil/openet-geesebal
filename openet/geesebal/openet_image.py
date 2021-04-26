@@ -32,7 +32,7 @@ class Image():
             ndvi_cold=5,
             ndvi_hot=10,
             lst_cold=20,
-            lst_hot=10,
+            lst_hot=20,
             et_reference_source='IDAHO_EPSCOR/GRIDMET',
             et_reference_band='eto',
             et_reference_factor=0.85,
