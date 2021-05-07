@@ -14,7 +14,18 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
        time_start, geometry_image, coords
        ):
 
-    """"""
+    """
+    Daily Evapotranspiration [mm day-1].
+
+    Parameters
+    ----------
+    Returns
+    -------
+    ee.Image
+
+    References
+    ----------
+    """
 
     # GET INFORMATIONS FROM IMAGE
     date = ee.Date(time_start)
@@ -96,7 +107,16 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
 
 def meteorology(time_start, meteo_inst_source, meteo_daily_source):
 
-    """"""
+    """
+    Parameters
+    ----------
+    Returns
+    -------
+    ee.Image
+
+    References
+    ----------
+    """
 
     time_start = ee.Number(time_start)
 
@@ -119,13 +139,13 @@ def meteorology(time_start, meteo_inst_source, meteo_daily_source):
         .divide(image_next_time.subtract(image_previous_time))
 
     # Daily variables
-    # Incoming shorwave down (W m-2)
+    # Incoming shorwave down [W m-2]
     swdown24h = meteorology_daily.select('srad').first().rename('short_wave_down')
 
     tmin = meteorology_daily.select('tmmn').first().rename('tmin')
     tmax = meteorology_daily.select('tmmx').first().rename('tmax')
 
-    # Instantaneous short wave radiation (W m-2)
+    # Instantaneous short wave radiation [W m-2]
     rso_inst = next_image.select('shortwave_radiation')\
         .subtract(previous_image.select('shortwave_radiation'))\
         .multiply(delta_time).add(previous_image.select('shortwave_radiation'))\
@@ -191,7 +211,18 @@ def meteorology(time_start, meteo_inst_source, meteo_daily_source):
 
 def tao_sw(landsat_image, dem, tair, rh, sun_elevation):
 
-    """Correct declivity and aspect effects from Land Surface Temperature"""
+    """
+    Correct declivity and aspect effects from Land Surface Temperature.
+
+    Parameters
+    ----------
+    Returns
+    -------
+    ee.Image
+
+    References
+    ----------
+    """
 
     # Atmospheric pressure [kPa] (FAO56 Eqn 7)
     pres = landsat_image.expression(
@@ -225,7 +256,18 @@ def tao_sw(landsat_image, dem, tair, rh, sun_elevation):
 
 def cos_terrain(landsat_image, time_start, dem, hour, minutes, coords):
 
-    """Cosine zenith angle elevation (Allen et al. (2006))"""
+    """
+    Cosine zenith angle elevation (Allen et al. (2006)).
+
+    Parameters
+    ----------
+    Returns
+    -------
+    ee.Image
+
+    References
+    ----------
+    """
 
     # Day of the year
     doy = ee.Date(time_start).getRelative('day', 'year').add(1)
@@ -271,7 +313,17 @@ def lst_correction(landsat_image, time_start, ndwi, lst, dem, tair, rh,
                    sun_elevation, hour, minutes, coords):
 
     """
-    Correct declivity and aspect effects from Land Surface Temperature."""
+    Correct declivity and aspect effects from Land Surface Temperature.
+
+    Parameters
+    ----------
+    Returns
+    -------
+    ee.Image
+
+    References
+    ----------
+    """
 
     # Solar constant [W m-2]
     gsc = ee.Number(1367)
@@ -321,7 +373,18 @@ def lst_correction(landsat_image, time_start, ndwi, lst, dem, tair, rh,
 
 def lc_mask(landsat_image, year, geometry_image):
 
-    """Filtering pre-candidates pixels using a Land cover mask"""
+    """
+    Filtering pre-candidates pixels using a Land cover mask.
+
+    Parameters
+    ----------
+    Returns
+    -------
+    ee.Image
+
+    References
+    ----------
+    """
 
     # Conditions
     year_condition = ee.Algorithms.If(ee.Number(year).lte(2007), 2008, year)
@@ -369,7 +432,6 @@ def cold_pixel(landsat_image, ndvi, ndwi, lst_dem, year, ndvi_cold, lst_cold,
     """
     Simplified CIMEC method to select the cold pixel
 
-
     Parameters
     ----------
     landsat_image : ee.Image
@@ -403,12 +465,12 @@ def cold_pixel(landsat_image, ndvi, ndwi, lst_dem, year, ndvi_cold, lst_cold,
     References
     ----------
 
-    .. [Allen2013] Allen, R.G., Burnett, B., Kramber, W., Huntington, J.,
+    ..[Allen2013] Allen, R.G., Burnett, B., Kramber, W., Huntington, J.,
         Kjaersgaard, J., Kilic, A., Kelly, C., Trezza, R., (2013).
         Automated Calibration of the METRIC-Landsat Evapotranspiration Process.
         JAWRA J. Am. Water Resour. Assoc. 49, 563–576.
-    """
 
+    """
     # Pre-filter
     pos_ndvi = ndvi.updateMask(ndvi.gt(0)).rename('post_ndvi')
     ndvi_neg = pos_ndvi.multiply(-1).rename('ndvi_neg')
@@ -663,55 +725,55 @@ def radiation_24h(image, time_start, tmax, tmin, elev, rso24h):
 def fexp_hot_pixel(landsat_image, time_start, ndvi, ndwi, lst_dem, rn, g, year,
                    ndvi_hot, lst_hot, geometry_image, coords):
 
-        """
-        Simplified CIMEC method to select the hot pixel
+    """
+    Simplified CIMEC method to select the hot pixel
 
 
-        Parameters
-        ----------
-        landsat_image : ee.Image
-        time_start : ee.Date
-            Date information of the image.
-        ndvi : ee.Image
-            Normalized difference vegetation index.
-        ndwi : ee.Image
-            Normalized difference water index.
-        lst_dem : ee.Image
-            Land surface temperature [K].
-        rn : ee.Image
-            Instantaneous Net Radiation [W m-2]
-        g : ee.Image
-            Instantaneous Soil heat flux [W m-2]
-        year : ee.Number, int
-            Year of the image.
-        ndvi_cold : ee.Number, int
-            NDVI Percentile value to determinate cold pixel.
-        lst_cold : ee.Number, int
-            LST Percentile value to determinate cold pixel.
-        geometry_image : ee.Geometry
-            Image geometry.
-        coords : ee.Image
-            Latitude and longitude coordinates of the image.
+    Parameters
+    ----------
+    landsat_image : ee.Image
+    time_start : ee.Date
+        Date information of the image.
+    ndvi : ee.Image
+        Normalized difference vegetation index.
+    ndwi : ee.Image
+        Normalized difference water index.
+    lst_dem : ee.Image
+        Land surface temperature [K].
+    rn : ee.Image
+        Instantaneous Net Radiation [W m-2]
+    g : ee.Image
+        Instantaneous Soil heat flux [W m-2]
+    year : ee.Number, int
+        Year of the image.
+    ndvi_cold : ee.Number, int
+        NDVI Percentile value to determinate cold pixel.
+    lst_cold : ee.Number, int
+        LST Percentile value to determinate cold pixel.
+    geometry_image : ee.Geometry
+        Image geometry.
+    coords : ee.Image
+        Latitude and longitude coordinates of the image.
 
-        Returns
-        -------
-        ee.Dictionary
+    Returns
+    -------
+    ee.Dictionary
 
-        Notes
-        -----
-        Based on Allen et al (2013) procedure to represent extreme conditions
-        to use in METRIC (adaptable for SEBAL) using endmembers candidates from
-        pre-defined percentiles of LST and NDVI.
+    Notes
+    -----
+    Based on Allen et al (2013) procedure to represent extreme conditions
+    to use in METRIC (adaptable for SEBAL) using endmembers candidates from
+    pre-defined percentiles of LST and NDVI.
 
-        References
-        ----------
+    References
+    ----------
 
-        .. [Allen2013] Allen, R.G., Burnett, B., Kramber, W., Huntington, J.,
-            Kjaersgaard, J., Kilic, A., Kelly, C., Trezza, R., (2013).
-            Automated Calibration of the METRIC-Landsat Evapotranspiration Process.
-            JAWRA J. Am. Water Resour. Assoc. 49, 563–576.
-        ..
-        """
+    .. [Allen2013] Allen, R.G., Burnett, B., Kramber, W., Huntington, J.,
+        Kjaersgaard, J., Kilic, A., Kelly, C., Trezza, R., (2013).
+        Automated Calibration of the METRIC-Landsat Evapotranspiration Process.
+        JAWRA J. Am. Water Resour. Assoc. 49, 563–576.
+    ..
+    """
 
     # Pre-filter
     pos_ndvi = ndvi.updateMask(ndvi.gt(0)).rename('post_ndvi')
@@ -984,27 +1046,27 @@ def sensible_heat_flux(landsat_image, savi, ux, ts_cold_number, d_hot_pixel,
 
         # Stability corrections for stable conditions
         i_psim_200 = img.expression(
-            '-5 * (hight / i_L_int)', {'hight': 200.0, 'i_L_int': i_L_int},
+            '-5 * (height / i_L_int)', {'height': 200.0, 'i_L_int': i_L_int},
         )
         i_psih_2 = img.expression(
-            '-5 * (hight / i_L_int)', {'hight': 2.0, 'i_L_int': i_L_int},
+            '-5 * (height / i_L_int)', {'height': 2.0, 'i_L_int': i_L_int},
         )
         i_psih_01 = img.expression(
-            '-5 * (hight / i_L_int)', {'hight': 0.1, 'i_L_int': i_L_int},
+            '-5 * (height / i_L_int)', {'height': 0.1, 'i_L_int': i_L_int},
         )
 
         # x for different height
         i_x200 = i_L_int.expression(
-            '(1 - (16 * (hight / i_L_int))) ** 0.25',
-            {'hight': 200.0, 'i_L_int': i_L_int}
+            '(1 - (16 * (height / i_L_int))) ** 0.25',
+            {'height': 200.0, 'i_L_int': i_L_int}
         )
         i_x2 = i_L_int.expression(
-            '(1 - (16 * (hight / i_L_int))) ** 0.25',
-            {'hight': 2.0, 'i_L_int': i_L_int}
+            '(1 - (16 * (height / i_L_int))) ** 0.25',
+            {'height': 2.0, 'i_L_int': i_L_int}
         )
         i_x01 = i_L_int.expression(
-            '(1 - (16 * (hight / i_L_int))) ** 0.25',
-            {'hight': 0.1, 'i_L_int': i_L_int}
+            '(1 - (16 * (height / i_L_int))) ** 0.25',
+            {'height': 0.1, 'i_L_int': i_L_int}
         )
 
         # Stability corrections for unstable conditions
@@ -1027,7 +1089,7 @@ def sensible_heat_flux(landsat_image, savi, ux, ts_cold_number, d_hot_pixel,
 
         # Corrected value for the friction velocity.
         i_ufric = i_ufric.expression(
-            '(u200 * 0.41) / (log(hight / i_zom) - i_psim_200)',
+            '(u200 * 0.41) / (log(height / i_zom) - i_psim_200)',
             {'u200': i_u200, 'height': n_height,
              'i_zom': i_zom, 'i_psim_200': i_psim_200},
         )
