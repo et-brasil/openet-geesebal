@@ -189,8 +189,8 @@ def test_Image_et_reference_properties():
 @pytest.mark.parametrize(
     'source, band, factor, xy, expected',
     [
-        ['IDAHO_EPSCOR/GRIDMET', 'etr', 1, TEST_POINT, 10.9],
-        ['IDAHO_EPSCOR/GRIDMET', 'etr', 0.85, TEST_POINT, 10.9 * 0.85],
+        ['IDAHO_EPSCOR/GRIDMET', 'etr', 1, TEST_POINT, 11.2],
+        ['IDAHO_EPSCOR/GRIDMET', 'etr', 0.85, TEST_POINT, 11.2 * 0.85],
         ['projects/earthengine-legacy/assets/projects/climate-engine/cimis/daily',
          'ETr_ASCE', 1, TEST_POINT, 10.125],
         [10, 'FOO', 1, TEST_POINT, 10.0],
