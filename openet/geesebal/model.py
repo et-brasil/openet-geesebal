@@ -100,7 +100,7 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
         print(f'Unhandled Exception: {e}')
 
         # Return a masked image
-        et_24hr = ee.Image.constant(0).updateMask(0)
+        et_24hr = ee.Image.constant(0).updateMask(0).rename('et')
 
     return et_24hr
 
@@ -487,7 +487,8 @@ def cold_pixel(landsat_image, ndvi, ndwi, lst_dem, year, ndvi_cold, lst_cold,
         reducer=ee.Reducer.percentile([ndvi_cold]),
         geometry=geometry_image,
         scale=30,
-        maxPixels=1e9)
+        maxPixels=1e9).combine(ee.Dictionary({'ndvi_neg': 100}), overwrite=False)
+
     n_perc_top_NDVI = ee.Number(d_perc_top_NDVI.get('ndvi_neg'))
 
     i_top_NDVI = images.updateMask(land_cover_mask)\
@@ -497,7 +498,8 @@ def cold_pixel(landsat_image, ndvi, ndwi, lst_dem, year, ndvi_cold, lst_cold,
         reducer=ee.Reducer.percentile([lst_cold]),
         geometry=geometry_image,
         scale=30,
-        maxPixels=1e9)
+        maxPixels=1e9).combine(ee.Dictionary({'lst_nw': 350}), overwrite=False)
+
     n_perc_low_LST = ee.Number(d_perc_low_LST.get('lst_nw'))
 
     i_cold_lst = i_top_NDVI.updateMask(land_cover_mask)\
@@ -533,7 +535,7 @@ def cold_pixel(landsat_image, ndvi, ndwi, lst_dem, year, ndvi_cold, lst_cold,
         'x': n_long_cold,
         'y': n_lat_cold,
         'sum': n_sum_final_cold_pix,
-    })
+    }).combine(ee.Dictionary({'temp': 0,'ndvi': 0,'x': 0,'y': 0,'sum': 0}),overwrite=False)
 
     return d_cold_pixel
 
@@ -792,7 +794,7 @@ def fexp_hot_pixel(landsat_image, time_start, ndvi, ndwi, lst_dem, rn, g, year,
         reducer=ee.Reducer.percentile([ndvi_hot]),
         geometry=geometry_image,
         scale=30,
-        maxPixels=1e9)
+        maxPixels=1e9).combine(ee.Dictionary({'post_ndvi': 100}), overwrite=False)
     n_perc_low_NDVI = ee.Number(d_perc_down_ndvi.get('post_ndvi'))
 
     i_low_NDVI = images.updateMask(land_cover_mask)\
@@ -802,7 +804,8 @@ def fexp_hot_pixel(landsat_image, time_start, ndvi, ndwi, lst_dem, rn, g, year,
         reducer=ee.Reducer.percentile([lst_hot]),
         geometry=geometry_image,
         scale=30,
-        maxPixels=1e9)
+        maxPixels=1e9).combine(ee.Dictionary({'lst_neg': 350}), overwrite=False)
+
     n_perc_top_lst = ee.Number(d_perc_top_lst.get('lst_neg'))
 
     i_top_LST = i_low_NDVI.updateMask(land_cover_mask)\
@@ -850,16 +853,22 @@ def fexp_hot_pixel(landsat_image, time_start, ndvi, ndwi, lst_dem, rn, g, year,
 
     # Dictionary
     d_hot_pixel = ee.Dictionary({
-        'temp': ee.Number(n_Ts_hot).subtract(ee.Number(n_Tfac)),
+        'temp': n_Ts_hot,
+        'tfac': n_Tfac,
         'x': n_long_hot,
         'y': n_lat_hot,
         'rn': n_Rn_hot,
         'g': n_G_hot,
         'ndvi': n_ndvi_hot,
         'sum': n_sum_final_hot_pix,
-    })
+    }).combine(ee.Dictionary({'temp': 0,'tfac':0,'x': 0,'y': 0,
+                              'rn':0,'g':0,'ndvi':0,'sum': 0}),
+                              overwrite=False)
 
     return d_hot_pixel
+
+
+
 
 
 def sensible_heat_flux(landsat_image, savi, ux, ts_cold_number, d_hot_pixel,
@@ -921,9 +930,8 @@ def sensible_heat_flux(landsat_image, savi, ux, ts_cold_number, d_hot_pixel,
 
     # Slope/ Aspect
     slope_aspect = ee.Terrain.products(dem)
-
     n_Ts_cold = ee.Number(ts_cold_number)
-    n_Ts_hot = ee.Number(d_hot_pixel.get('temp'))
+    n_Ts_hot = ee.Number(d_hot_pixel.get('temp')).subtract(ee.Number(d_hot_pixel.get('tfac')))
     n_G_hot = ee.Number(d_hot_pixel.get('g'))
     n_Rn_hot = ee.Number(d_hot_pixel.get('rn'))
     n_long_hot = ee.Number(d_hot_pixel.get('x'))
@@ -992,7 +1000,8 @@ def sensible_heat_flux(landsat_image, savi, ux, ts_cold_number, d_hot_pixel,
             reducer=ee.Reducer.first(),
             geometry=p_hot_pix,
             scale=30,
-            maxPixels=9000000000)
+            maxPixels=9000000000).combine(ee.Dictionary({'rah': 0}),
+                                                        overwrite=False)
 
         # LL : To avoid 'Max (NaN) cannot be less than min (NaN)' erros in
         # cases which iterative process not converge
