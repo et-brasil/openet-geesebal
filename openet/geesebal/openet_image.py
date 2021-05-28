@@ -342,7 +342,7 @@ class Image():
             spacecraft_id.compareTo(ee.String('LANDSAT_8')),
             landsat.albedo_l457(prep_image),
             landsat.albedo_l8(prep_image))
-        
+
         cloud_mask = ee.Algorithms.If(
             spacecraft_id.compareTo(ee.String('LANDSAT_8')),
             landsat.cloud_mask_C2_l457(sr_image),
@@ -383,7 +383,7 @@ class Image():
 
         # Instantiate the class
         return cls(input_image, **kwargs)
-            
+
     def calculate(self, variables=['ndvi', 'lst', 'et', 'et_fraction']):
         """Return a multiband image of calculated variables
 
@@ -399,7 +399,7 @@ class Image():
         output_images = []
         for v in variables:
             if v.lower() == 'et':
-                output_images.append(self.et.float())    
+                output_images.append(self.et.float())
             elif v.lower() == 'et_fraction':
                 output_images.append(self.et_fraction.float())
             elif v.lower() == 'lst':
@@ -418,39 +418,39 @@ class Image():
 
     @lazy_property
     def ndvi(self,):
-    
+
         return self.image.select(['ndvi']).set(self._properties)
-    
+
     @lazy_property
     def emissivity(self,):
-    
-        return self.image.select(['emissivity']).set(self._properties)    
-    
+
+        return self.image.select(['emissivity']).set(self._properties)
+
     @lazy_property
     def ndwi(self,):
-    
-        return self.image.select(['ndwi']).set(self._properties)   
-    
+
+        return self.image.select(['ndwi']).set(self._properties)
+
     @lazy_property
     def lai(self,):
-    
-        return self.image.select(['lai']).set(self._properties)    
-    
+
+        return self.image.select(['lai']).set(self._properties)
+
     @lazy_property
     def albedo(self,):
-    
-        return self.image.select(['albedo']).set(self._properties)    
-   
+
+        return self.image.select(['albedo']).set(self._properties)
+
     @lazy_property
     def savi(self,):
-    
-        return self.image.select(['savi']).set(self._properties)   
-   
+
+        return self.image.select(['savi']).set(self._properties)
+
     @lazy_property
     def lst(self,):
-    
-        return self.image.select(['lst']).set(self._properties)          
-   
+
+        return self.image.select(['lst']).set(self._properties)
+
     @lazy_property
     def et(self,):
 
@@ -471,6 +471,7 @@ class Image():
                         lst_hot=self._lst_hot,
                         time_start=self._time_start,
                         geometry_image=self.geometry,
+                        proj=self.proj,
                         # crs=self.crs,
                         # transform=self.transform,
                         coords=self.coords,
