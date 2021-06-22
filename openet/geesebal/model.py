@@ -389,7 +389,14 @@ def lc_mask(landsat_image, year, geometry_image):
     """
 
     # Conditions
-    year_condition = ee.Algorithms.If(ee.Number(year).lte(2007), 2008, year)
+    cdl_year_min = 2008
+    cdl_year_max = 2020
+    # cdl_year_max = ee.Date(
+    #     ee.ImageCollection('USDA/NASS/CDL')
+    #         .limit(1, 'system:time_start', False)
+    #         .first().get('system:time_start')).get('year')
+    year_condition = ee.Number(year).max(cdl_year_min).min(cdl_year_max)
+    # year_condition = ee.Algorithms.If(ee.Number(year).lte(2007), 2008, year)
 
     start = ee.Date.fromYMD(year_condition, 1, 1)
     end = ee.Date.fromYMD(year_condition, 12, 31)
