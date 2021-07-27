@@ -1,55 +1,104 @@
-# ETBRASIL - geeSEBAL
-<img src="https://github.com/et-brasil/EESEBAL/blob/master/Images/geeSEBAL_logo_update_cut.png?raw=true" width="200">
+OpenET - geeSEBAL
+===============
+<img src="https://github.com/et-brasil/EESEBAL/blob/master/Images/geeSEBAL_logo_update_cut.png?raw=true" width="140">
+
+## Estimating Evapotranspiration using SEBAL model in Google Earth Engine platform.
+
+* The Google Earth Engine Surface Energy Balance for Land (geeSEBAL) solves de energy balance equation (LE+H = Rn - G) to estimate Daily Evapotranspiration (ET) by using Landsat images (L4, L5, L7 and L8) and meteological data (air temperature, relative humidity, global radiation and wind speed).
 
 
-### geeSEBAL is a open-source implementation of Surface Energy Balance Algorithm for Land (SEBAL) using Google Earth Engine (GEE).
 
-Input Collections
-=================
+## Input Collections
+* The following Earth Engine image collection are use in geeSEBAL :
 
-* LANDSAT/LC08/C01/T1_SR
-* LANDSAT/LE07/C01/T1_SR
-* LANDSAT/LT05/C01/T1_SR
-* LANDSAT/LT04/C01/T1_SR
-* LANDSAT/LC08/C02/T1_L2
-* LANDSAT/LE07/C02/T1_L2
-* LANDSAT/LT05/C02/T1_L2
-* LANDSAT/LT04/C02/T1_L2
+| Image Collections IDs|
+| :------------: |
+| LANDSAT/LC08/C01/T1_SR  |
+| LANDSAT/LE07/C01/T1_SR  |
+|  LANDSAT/LT05/C01/T1_SR |
+|  LANDSAT/LT04/C01/T1_SR |
+| LANDSAT/LC08/C02/T1_L2  |
+|  LANDSAT/LE07/C02/T1_L2 |
+|  LANDSAT/LT05/C02/T1_L2 |
+| LANDSAT/LT04/C02/T1_L2  | 
 
-Model Design
-============
-Working.
+## Model Description
+* Surface Energy Balance Algorithm for Land (SEBAL) was developed and validated by Bastiaanssen ( Bastiaanssen et al., 1998a, 1998b) to estimate evapotranspiration (ET) from energy balance equation (Rn – G = LE + H), where LE, Rn, G and H are Latent Heat Flux, Net Radiation, Soil Heat Flux and Sensible Heat Flux, respectively. SEBAL estimates LE as a residual of others energy fluxes (LE = Rn - LE - G).
 
+* SEBAL algorithm has an internal calibration, assuming a linear relationship between dT and LST across domain area, where dT is designed as a vertical air temperature (Ta) floating over the land surface, considering two extreme conditions. At the hot and dry extreme condition, LE is zero and H is equal to the available energy, whereas at the cold and wet extreme condition, H is zero and LE is equal to the available energy.
 
-| SPACECRAFT_ID   |    Band Names                               |
-| --------------- | ------------------------------------------- |
-| LANDSAT_4       |    B1, B2, B3, B4, B5, B7, B6, pixel_qa     |           
-| LANDSAT_5       |    B1, B2, B3, B4, B5, B7, B6, pixel_qa     | 
-| LANDSAT_7       |    B1, B2, B3, B4, B5, B7, B6, pixel_qa     | 
-| LANDSAT_8       |    B1, B2, B3, B4, B5, B6, B7, B10, pixel_qa| 
+## Model Design
 
-
-|Property       |    Description|
-| --- | ---|
-| system:index      |  - Landsat Scene ID |
-|                   |  - Must be in the Earth Engine format (e.g. LC08_044033_20170716) |
-|                   |  - Used to lookup the scene specific c-factor |
-| system:time_start | - Image datetime in milliseconds since 1970 |
-| SPACECRAFT_ID     | - Used to determine which Landsat type |
-|                  | - Must be: LANDSAT_4, LANDSAT_5, LANDSAT_7, or LANDSAT_8 |
-| SUN_ELEVATION     | - Used to correct Correct declivity and aspect effects from LST |
-|                  | - Used to estimate instantaneous net radiation |
-
-
-Model Output
+###  Image()
+* Compute Daily ET or ET fraction for a single input image.
+* Allow to obtain ET image collections by mapping over  Landsat collections.
 ------------
-Working.
+#### Landsat Collection 1 SR Input Image
 
-References
-==========
+* Select Image.from_landsat_c1_sr() method to instantiate the class for a Landsat Collection 1 SR image. Image must have the following bands and properties:
 
-#### [Bastiaanssen et al. 1998] [Bastiaanssen, W.G.M., Menenti, M., Feddes, R.A., Holtslag, A.A.M., (1998). A remote sensing surface energy balance algorithm for land (SEBAL): 1. Formulation. J. Hydrol. 212–213, 198–212.](https://doi.org/10.1016/S0022-1694(98)00253-4)
-#### [Bastiaanssen et al. 1998] [Bastiaanssen, W.G.M., Pelgrum, H., Wang, J., Ma, Y., Moreno, J.F., Roerink, G.J., van der Wal, T., (1998). A remote sensing surface energy balance algorithm for land (SEBAL): 2. Validation. J. Hydrol. 212–213, 213–229.](https://doi.org/10.1016/S0022-1694(98)00254-6)
-#### [Laipelt et al. 2020] [Laipelt, L.; Ruhoff, A.L.; Fleischmann, A.S.; Kayser, R.H.B.; Kich, E.M.; da Rocha, H.R.; Neale, C.M.U. Assessment of an Automated Calibration of the SEBAL Algorithm to Estimate Dry-Season Surface-Energy Partitioning in a Forest–Savanna Transition in Brazil. Remote Sens. 2020, 12, 1108.](https://doi.org/10.3390/rs12071108)
-#### [Laipelt et al. submitted] [Laipelt, L.; Kayser, R.H.B.; Fleischmann, A.S; Ruhoff, A.L; Bastiaanssen, W.; Erickson, T.; Melton, F. Long-term monitoring of evapotranspiration using the SEBAL algorithm and Google Earth Engine cloud computing.]
- 
+|SPACECRAFT_ID   |    Band Names                               |
+| --------------- | ------------------------------------------- |
+| **LANDSAT_4**      |    B1, B2, B3, B4, B5, B7, B6, pixel_qa     |           
+| **LANDSAT_5**       |    B1, B2, B3, B4, B5, B7, B6, pixel_qa     | 
+| **LANDSAT_7**       |    B1, B2, B3, B4, B5, B7, B6, pixel_qa     | 
+| **LANDSAT_8**       |    B1, B2, B3, B4, B5, B6, B7, B10, pixel_qa| 
+
+|PROPERTIES|
+| ------------ |
+|**system: index** - Landsat scene ID (ex: LC08_044033_20170801)|
+|**system: time_start** -  Time start of the image in epoch time|
+|**SPACECRAFT_ID** - Landsat Satellite (LANDSAT_4, LANDSAT_5, LANDSAT_7, LANDSAT_8)|
+|**SOLAR_ZENITH_ANGLE ** -  Solar zenith angle in degrees
+------------
+#### Landsat Collection 2 Input Image
+
+* Select Image.from_landsat_c2_sr() method to instantiate the class for a Landsat Collection 2 SR image. Image must have the following bands and properties:
+
+|SPACECRAFT_ID   |    Band Names                               |
+| --------------- | ------------------------------------------- |
+| **LANDSAT_4**      |    SR_B1, SR_B2, SR_B3, SR_B4, SR_B5, SR_B7, ST_B6, QA_PIXEL     |           
+| **LANDSAT_5**       |    SR_B1, SR_B2, SR_B3, SR_B4, SR_B5, SR_B7, ST_B6, QA_PIXEL     | 
+| **LANDSAT_7**       |    SR_B1, SR_B2, SR_B3, SR_B4, SR_B5, SR_B7, ST_B6, QA_PIXEL     | 
+| **LANDSAT_8**       |    SR_B1, SR_B2, SR_B3, SR_B4, SR_B5, SR_B6, SR_B7, ST_B10, QA_PIXEL| 
+
+
+|PROPERTIES|
+| ------------ |
+|**system: index** - Landsat scene ID (ex: LC08_044033_20170801)|
+|**system: time_start** -  Time start of the image in epoch time|
+|**SPACECRAFT_ID** - Landsat Satellite (LANDSAT_4, LANDSAT_5, LANDSAT_7, LANDSAT_8)|
+|**SUN_ELEVATION** -  Solar elevation angle in degrees 
+
+## Model Output
+
+The general outputs of the geeSEBAL are ndvi (normalized difference vegetation index), lst (land surface temperature), et_fraction and et. They can be selected as example below:
+
+### Example
+	import openet.geesebal as geesebal
+	
+	ls_img = ee.Image('LANDSAT/LC08/C01/T1_SR/LC08_044033_20170801')
+	model_obj = geesebal.from_landsat_c1_sr(ls_img)
+
+	ndvi = model_obj.ndvi
+	lst = model_obj.lst
+	et_fraction = model.et_fraction
+	et = model_obj.et
+
+## Examples Notebooks
+
+Examples of how to use geeSEBAL model are detailed in *examples*  folder:
+
+[geeSEBAL examples.](https://github.com/et-brasil/openet-geesebal/blob/main/examples "Examples")
+
+## Installation
+	pip install openet-geesebal
+### Depedencies
+ * `earthengine-api` <https://github.com/google/earthengine-api>`
+
+ * `openet-core` <https://github.com/Open-ET/openet-core-beta>`
+                
+## References
+
+[[2021] Laipelt, L., Kayser, R. H. B., Fleischmann A., Ruhoff, A., Bastiaanssen, W., Erickson, T., Melton, F. Long-term monitoring of evapotranspiration using the SEBAL algorithm and Google Earth Engine cloud computing.](https://doi.org/10.1016/j.isprsjprs.2021.05.018)
+
