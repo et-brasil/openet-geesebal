@@ -27,6 +27,9 @@ OpenET - geeSEBAL
 
 * SEBAL algorithm has an internal calibration, assuming a linear relationship between dT and LST across domain area, where dT is designed as a vertical air temperature (Ta) floating over the land surface, considering two extreme conditions. At the hot and dry extreme condition, LE is zero and H is equal to the available energy, whereas at the cold and wet extreme condition, H is zero and LE is equal to the available energy.
 
+* Workflow of geeSEBAL, demonstrating remote sensing and global meteorological inputs, as well as data processing to estimate daily evapotranspiration.
+![fluxogram_openet_geesebal](https://user-images.githubusercontent.com/45111381/127649854-db066c12-8eb4-497c-8a4b-bed1791117d2.jpg)
+
 ## Model Design
 
 ###  Image()
