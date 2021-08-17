@@ -200,13 +200,13 @@ def meteorology(time_start, meteo_inst_source, meteo_daily_source, ndvi):
     rh = ea.divide(esat).multiply(100).rename('RH')
 
     # Resample
-    tmin = tmin.subtract(273.15).updateMask(ndvi.gte(0.05)).resample('bilinear')
-    tmax = tmax.subtract(273.15).updateMask(ndvi.gte(0.05)).resample('bilinear')
-    rso_inst = rso_inst.updateMask(ndvi.gte(0.05)).resample('bilinear')
-    tair_c = tair_c.updateMask(ndvi.gte(0.05)).resample('bilinear')
-    wind_med = wind_med.updateMask(ndvi.gte(0.05)).resample('bilinear')
-    rh = rh.updateMask(ndvi.gte(0.05)).resample('bilinear')
-    swdown24h = swdown24h.updateMask(ndvi.gte(0.05)).resample('bilinear')
+    tmin = tmin.subtract(273.15).resample('bilinear')
+    tmax = tmax.subtract(273.15).resample('bilinear')
+    rso_inst = rso_inst.resample('bilinear')
+    tair_c = tair_c.resample('bilinear')
+    wind_med = wind_med.resample('bilinear')
+    rh = rh.resample('bilinear')
+    swdown24h = swdown24h.resample('bilinear')
 
     return [tmin, tmax, tair_c, wind_med, rh, rso_inst, swdown24h]
 
