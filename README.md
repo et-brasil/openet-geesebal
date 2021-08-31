@@ -15,11 +15,11 @@ OpenET - geeSEBAL
 | :------------: |
 | LANDSAT/LC08/C01/T1_SR  |
 | LANDSAT/LE07/C01/T1_SR  |
-|  LANDSAT/LT05/C01/T1_SR |
-|  LANDSAT/LT04/C01/T1_SR |
+| LANDSAT/LT05/C01/T1_SR |
+| LANDSAT/LT04/C01/T1_SR |
 | LANDSAT/LC08/C02/T1_L2  |
-|  LANDSAT/LE07/C02/T1_L2 |
-|  LANDSAT/LT05/C02/T1_L2 |
+| LANDSAT/LE07/C02/T1_L2 |
+| LANDSAT/LT05/C02/T1_L2 |
 | LANDSAT/LT04/C02/T1_L2  | 
 
 ## Model Description
@@ -40,12 +40,12 @@ OpenET - geeSEBAL
 
 * Select Image.from_landsat_c1_sr() method to instantiate the class for a Landsat Collection 1 SR image. Image must have the following bands and properties:
 
-|SPACECRAFT_ID   |    Band Names                               |
-| --------------- | ------------------------------------------- |
+|SPACECRAFT_ID       |    Band Names                               |
+| ------------------ | ------------------------------------------- |
 | **LANDSAT_4**      |    B1, B2, B3, B4, B5, B7, B6, pixel_qa     |           
-| **LANDSAT_5**       |    B1, B2, B3, B4, B5, B7, B6, pixel_qa     | 
-| **LANDSAT_7**       |    B1, B2, B3, B4, B5, B7, B6, pixel_qa     | 
-| **LANDSAT_8**       |    B1, B2, B3, B4, B5, B6, B7, B10, pixel_qa| 
+| **LANDSAT_5**      |    B1, B2, B3, B4, B5, B7, B6, pixel_qa     | 
+| **LANDSAT_7**      |    B1, B2, B3, B4, B5, B7, B6, pixel_qa     | 
+| **LANDSAT_8**      |    B1, B2, B3, B4, B5, B6, B7, B10, pixel_qa| 
 
 |PROPERTIES|
 | ------------ |
