@@ -164,7 +164,7 @@ class Collection():
         for coll_id in self.collections:
             if (coll_id not in self._landsat_c1_sr_collections and
                     coll_id not in self._landsat_c2_sr_collections):
-                raise ValueError('unsupported collection: {}'.format(coll_id))
+                raise ValueError(f'unsupported collection: {coll_id}')
 
         # Check that collections don't have "duplicates"
         #   (i.e TOA and SR or TOA and TOA_RT for same Landsat)
@@ -209,6 +209,8 @@ class Collection():
         if self.start_date >= '2012-01-01':
             self.collections = [c for c in self.collections if 'LT05' not in c]
         if self.end_date <= '1999-01-01':
+            self.collections = [c for c in self.collections if 'LE07' not in c]
+        if self.start_date >= '2022-01-01':
             self.collections = [c for c in self.collections if 'LE07' not in c]
         if self.end_date <= '2013-01-01':
             self.collections = [c for c in self.collections if 'LC08' not in c]
@@ -275,6 +277,9 @@ class Collection():
                 if 'LT05' in coll_id:
                     input_coll = input_coll.filter(ee.Filter.lt(
                         'system:time_start', ee.Date('2011-12-31').millis()))
+                elif 'LE07' in coll_id:
+                    input_coll = input_coll.filter(ee.Filter.lt(
+                        'system:time_start', ee.Date('2022-01-01').millis()))
                 elif 'LC08' in coll_id:
                     input_coll = input_coll.filter(ee.Filter.gt(
                         'system:time_start', ee.Date('2013-04-01').millis()))
@@ -309,6 +314,9 @@ class Collection():
                 if 'LT05' in coll_id:
                     input_coll = input_coll.filter(ee.Filter.lt(
                         'system:time_start', ee.Date('2011-12-31').millis()))
+                elif 'LE07' in coll_id:
+                    input_coll = input_coll.filter(ee.Filter.lt(
+                        'system:time_start', ee.Date('2022-01-01').millis()))
                 elif 'LC08' in coll_id:
                     input_coll = input_coll.filter(ee.Filter.gt(
                         'system:time_start', ee.Date('2013-04-01').millis()))
@@ -321,44 +329,8 @@ class Collection():
                 variable_coll = variable_coll.merge(
                     ee.ImageCollection(input_coll.map(compute_lsr)))
 
-            # elif coll_id in self._landsat_c1_toa_collections:
-            #     input_coll = ee.ImageCollection(coll_id) \
-            #         .filterDate(start_date, end_date) \
-            #         .filterBounds(self.geometry) \
-            #         .filterMetadata('DATA_TYPE', 'equals', 'L1TP') \
-            #         .filterMetadata('CLOUD_COVER_LAND', 'less_than',
-            #                         self.cloud_cover_max)
-            #
-            #     # TODO: Need to come up with a system for applying
-            #     #   generic filter arguments to the collections
-            #     if coll_id in self.filter_args.keys():
-            #         for f in copy.deepcopy(self.filter_args[coll_id]):
-            #             try:
-            #                 filter_type = f.pop('type')
-            #             except KeyError:
-            #                 continue
-            #             if filter_type.lower() == 'equals':
-            #                 input_coll = input_coll.filter(ee.Filter.equals(**f))
-            #
-            #     # Time filters are to remove bad (L5) and pre-op (L8) images
-            #     if 'LT05' in coll_id:
-            #         input_coll = input_coll.filter(ee.Filter.lt(
-            #             'system:time_start', ee.Date('2011-12-31').millis()))
-            #     elif 'LC08' in coll_id:
-            #         input_coll = input_coll.filter(ee.Filter.gt(
-            #             'system:time_start', ee.Date('2013-04-01').millis()))
-            #
-            #     def compute_ltoa(image):
-            #         model_obj = Image.from_landsat_c1_toa(
-            #             toa_image=ee.Image(image), **self.model_args)
-            #         return model_obj.calculate(variables)
-            #
-            #     variable_coll = variable_coll.merge(
-            #         ee.ImageCollection(input_coll.map(compute_ltoa)))
-
-
             else:
-                raise ValueError('unsupported collection: {}'.format(coll_id))
+                raise ValueError(f'unsupported collection: {coll_id}')
 
         return variable_coll
 
@@ -403,7 +375,8 @@ class Collection():
             instantiation call.
         t_interval : {'daily', 'monthly', 'annual', 'custom'}, optional
             Time interval over which to interpolate and aggregate values
-            (the default is 'monthly').
+            The default 'custom' interval will aggregate all days within the
+            start/end dates and return an image collection with a single image.
         interp_method : {'linear}, optional
             Interpolation method (the default is 'linear').
         interp_days : int, str, optional
@@ -428,10 +401,9 @@ class Collection():
         """
         # Check that the input parameters are valid
         if t_interval.lower() not in ['daily', 'monthly', 'annual', 'custom']:
-            raise ValueError('unsupported t_interval: {}'.format(t_interval))
+            raise ValueError(f'unsupported t_interval: {t_interval}')
         elif interp_method.lower() not in ['linear']:
-            raise ValueError('unsupported interp_method: {}'.format(
-                interp_method))
+            raise ValueError(f'unsupported interp_method: {interp_method}')
 
         if type(interp_days) is str and utils.is_number(interp_days):
             interp_days = int(interp_days)
@@ -497,7 +469,7 @@ class Collection():
                                        'et_reference_factor']:
                 if (et_reference_param not in self.model_args.keys() or
                         not self.model_args[et_reference_param]):
-                    raise ValueError('{} was not set'.format(et_reference_param))
+                    raise ValueError(f'{et_reference_param} was not set')
 
             if type(self.model_args['et_reference_source']) is str:
                 # Assume a string source is an single image collection ID
