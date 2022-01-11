@@ -180,6 +180,7 @@ def test_Image_et_properties():
 def test_Image_et_reference_properties():
     """Test if properties are set on the reference ET image"""
     output =  utils.getinfo(default_image_obj().et_reference)
+    print(default_image_obj())
     assert output['bands'][0]['id'] == 'et_reference'
     assert output['properties']['system:index'] == SCENE_ID
     assert output['properties']['system:time_start'] == SCENE_TIME

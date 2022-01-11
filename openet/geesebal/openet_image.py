@@ -33,10 +33,6 @@ class Image():
             ndvi_hot=10,
             lst_cold=20,
             lst_hot=20,
-            et_reference_source='IDAHO_EPSCOR/GRIDMET',
-            et_reference_band='eto',
-            et_reference_factor=0.85,
-            et_reference_resample=None,
             **kwargs,
             ):
 
@@ -72,6 +68,19 @@ class Image():
             LST Percentile value to determinate cold pixel
         lst_hot : int, ee.Number, optional
             LST Percentile value to determinate hot pixel
+        kwargs : dict, optional
+            et_reference_source : str, float
+                Reference ET source (the default is None).
+                Parameter is required if computing 'et_fraction' or 'et_reference'.
+            et_reference_band : str
+                Reference ET band name (the default is None).
+                Parameter is required if computing 'et_fraction' or 'et_reference'.
+            et_reference_factor : float, None
+                Reference ET scaling factor.  The default is None which is
+                equivalent to 1.0 (or no scaling).
+            et_reference_resample : {'nearest', 'bilinear', 'bicubic', None}
+                Reference ET resampling.  The default is None which is
+                equivalent to nearest neighbor resampling.
 
         Notes
         -----
@@ -116,10 +125,34 @@ class Image():
         self._lst_cold = lst_cold
         self._lst_hot = lst_hot
 
-        self._et_reference_source = et_reference_source
-        self._et_reference_band = et_reference_band
-        self._et_reference_factor = et_reference_factor
-        self._et_reference_resample = et_reference_resample
+        # Reference ET parameters
+        try:
+            self.et_reference_source = kwargs['et_reference_source']
+        except:
+            self.et_reference_source = None
+        try:
+            self.et_reference_band = kwargs['et_reference_band']
+        except:
+            self.et_reference_band = None
+        try:
+            self.et_reference_factor = kwargs['et_reference_factor']
+        except:
+            self.et_reference_factor = None
+        try:
+            self.et_reference_resample = kwargs['et_reference_resample']
+        except:
+            self.et_reference_resample = None
+
+        # Check reference ET parameters
+        if (self.et_reference_factor and
+                not utils.is_number(self.et_reference_factor)):
+            raise ValueError('et_reference_factor must be a number')
+        if self.et_reference_factor and self.et_reference_factor < 0:
+            raise ValueError('et_reference_factor must be greater than zero')
+        resample_methods = ['nearest', 'bilinear', 'bicubic']
+        if (self.et_reference_resample and
+                self.et_reference_resample.lower() not in resample_methods):
+            raise ValueError('unsupported et_reference_resample method')
 
         self.geometry = self.image.select(0).geometry()
         self.proj = self.image.select(0).projection()
@@ -164,9 +197,9 @@ class Image():
         try:
             method_name = collection_methods[image_id.rsplit('/', 1)[0]]
         except KeyError:
-            raise ValueError('unsupported collection ID: {}'.format(image_id))
+            raise ValueError(f'unsupported collection ID: {image_id}')
         except Exception as e:
-            raise Exception('unhandled exception: {}'.format(e))
+            raise Exception(f'unhandled exception: {e}')
 
         method = getattr(Image, method_name)
 
@@ -412,7 +445,7 @@ class Image():
             elif v.lower() == 'time':
                 output_images.append(self.time)
             else:
-                raise ValueError('unsupported variable: {}'.format(v))
+                raise ValueError(f'unsupported variable: {v}')
 
         return ee.Image(output_images).set(self._properties)
 
@@ -486,8 +519,8 @@ class Image():
     #         self.image,
     #         self._time_start,
     #         self.et,
-    #         self._et_reference_source, self._et_reference_band,
-    #         self._et_reference_factor,
+    #         self.et_reference_source, self.et_reference_band,
+    #         self.et_reference_factor,
     #     )
     #
     #     return et_fr.set(self._properties)
@@ -495,26 +528,26 @@ class Image():
     @lazy_property
     def et_reference(self):
         """Reference ET for the image date"""
-        if utils.is_number(self._et_reference_source):
+        if utils.is_number(self.et_reference_source):
             # Interpret numbers as constant images
             # CGM - Should we use the ee_types here instead?
             #   i.e. ee.ee_types.isNumber(self.et_reference_source)
-            et_reference_img = ee.Image.constant(self._et_reference_source)
-        elif type(self._et_reference_source) is str:
+            et_reference_img = ee.Image.constant(self.et_reference_source)
+        elif type(self.et_reference_source) is str:
             # Assume a string source is an image collection ID (not an image ID)
-            et_reference_coll = ee.ImageCollection(self._et_reference_source)\
+            et_reference_coll = ee.ImageCollection(self.et_reference_source)\
                 .filterDate(self._start_date, self._end_date)\
-                .select([self._et_reference_band])
+                .select([self.et_reference_band])
             et_reference_img = ee.Image(et_reference_coll.first())
-            if self._et_reference_resample in ['bilinear', 'bicubic']:
+            if self.et_reference_resample in ['bilinear', 'bicubic']:
                 et_reference_img = et_reference_img\
-                    .resample(self._et_reference_resample)
+                    .resample(self.et_reference_resample)
         else:
             raise ValueError('unsupported et_reference_source: {}'.format(
-                self._et_reference_source))
+                self.et_reference_source))
 
-        if self._et_reference_factor:
-            et_reference_img = et_reference_img.multiply(self._et_reference_factor)
+        if self.et_reference_factor:
+            et_reference_img = et_reference_img.multiply(self.et_reference_factor)
 
         # Map ETr values directly to the input (i.e. Landsat) image pixels
         # The benefit of this is the ETr image is now in the same crs as the
