@@ -11,7 +11,7 @@ from . import utils
 
 
 def from_scene_et_fraction(scene_coll, start_date, end_date, variables,
-                           interp_args, model_args, t_interval='custom',
+                           interp_args, model_args, t_interval,
                            use_joins=False):
     """
 
@@ -34,10 +34,10 @@ def from_scene_et_fraction(scene_coll, start_date, end_date, variables,
             to include in the interpolation calculation. The default is 32.
     model_args : dict
         Parameters from the MODEL section of the INI file.
-    t_interval : {'daily', 'monthly', 'annual', 'custom'}, optional
+    t_interval : {'daily', 'monthly', 'annual', 'custom'}
         Time interval over which to interpolate and aggregate values
-        The default is 'custom' which means the aggregation time period
-        will be controlled by the start and end date parameters.
+        The 'custom' interval will aggregate all days within the start and end
+        dates into an image collection with a single image.
     use_joins : bool, optional
         If True, use joins to link the target and source collections.
 
@@ -66,10 +66,9 @@ def from_scene_et_fraction(scene_coll, start_date, end_date, variables,
 
     # Check that the input parameters are valid
     if t_interval.lower() not in ['daily', 'monthly', 'annual', 'custom']:
-        raise ValueError('unsupported t_interval: {}'.format(t_interval))
+        raise ValueError(f'unsupported t_interval: {t_interval}')
     elif interp_method.lower() not in ['linear']:
-        raise ValueError('unsupported interp_method: {}'.format(
-            interp_method))
+        raise ValueError(f'unsupported interp_method: {interp_method}')
 
     if ((type(interp_days) is str or type(interp_days) is float) and
             utils.is_number(interp_days)):
@@ -146,8 +145,7 @@ def from_scene_et_fraction(scene_coll, start_date, end_date, variables,
     #         .filterDate(self.start_date, self.end_date) \
     #         .select([et_reference_band])
     else:
-        raise ValueError('unsupported et_reference_source: {}'.format(
-            et_reference_source))
+        raise ValueError(f'unsupported et_reference_source: {et_reference_source}')
 
     # Scale reference ET images (if necessary)
     # CGM - Resampling is not working correctly so not including for now
@@ -358,7 +356,7 @@ def from_scene_et_fraction(scene_coll, start_date, end_date, variables,
 
 
 def from_scene_et_actual(scene_coll, start_date, end_date, variables,
-                         interp_args, model_args, t_interval='custom',
+                         interp_args, model_args, t_interval,
                          use_joins=False):
     """
 
@@ -382,10 +380,10 @@ def from_scene_et_actual(scene_coll, start_date, end_date, variables,
             to include in the interpolation calculation. The default is 32.
     model_args : dict
         Parameters from the MODEL section of the INI file.
-    t_interval : {'daily', 'monthly', 'annual', 'custom'}, optional
+    t_interval : {'daily', 'monthly', 'annual', 'custom'}
         Time interval over which to interpolate and aggregate values
-        The default is 'custom' which means the aggregation time period
-        will be controlled by the start and end date parameters.
+        The 'custom' interval will aggregate all days within the start and end
+        dates into an image collection with a single image.
     use_joins : bool, optional
         If True, use joins to link the target and source collections.
 
@@ -414,10 +412,9 @@ def from_scene_et_actual(scene_coll, start_date, end_date, variables,
 
     # Check that the input parameters are valid
     if t_interval.lower() not in ['daily', 'monthly', 'annual', 'custom']:
-        raise ValueError('unsupported t_interval: {}'.format(t_interval))
+        raise ValueError(f'unsupported t_interval: {t_interval}')
     elif interp_method.lower() not in ['linear']:
-        raise ValueError('unsupported interp_method: {}'.format(
-            interp_method))
+        raise ValueError(f'unsupported interp_method: {interp_method}')
 
     if ((type(interp_days) is str or type(interp_days) is float) and
             utils.is_number(interp_days)):
