@@ -505,8 +505,6 @@ class Image():
                         time_start=self._time_start,
                         geometry_image=self.geometry,
                         proj=self.proj,
-                        # crs=self.crs,
-                        # transform=self.transform,
                         coords=self.coords,
                         )
 
