@@ -72,7 +72,7 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
     # Image properties
     date = ee.Date(time_start)
     year = ee.Number(date.get('year'))
-    # month = ee.Number(date.get('month'))
+    month = ee.Number(date.get('month'))
     # day = ee.Number(date.get('day'))
     hour = ee.Number(date.get('hour'))
     minutes = ee.Number(date.get('minutes'))
@@ -85,7 +85,7 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
 
     # Meteorology parameters
     tmin, tmax, tair, ux, rh, rso_inst, rso24h = meteorology(
-        time_start, meteo_inst_source, meteo_daily_source, ndvi, proj
+        time_start, meteo_inst_source, meteo_daily_source,
     )
 
     # Elevation data
@@ -96,7 +96,7 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
     sun_elevation = ee.Number(image.get('SUN_ELEVATION'))
 
     #Terrain cos
-    cos_zn = cos_terrain(image, time_start, dem_product, hour, minutes, coords)
+    cos_zn = cos_terrain(time_start, dem_product, hour, minutes, coords)
     # LL: iterative process or endmembers selections may return empty values
     # in this case, return an empty image instead of broken the code
     try:
@@ -105,14 +105,14 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
 
         # Land surface temperature correction
         lst_dem = lst_correction(
-            image, time_start, ndwi, lst, elev, tair_dem, rh, sun_elevation,
+            time_start, ndwi, lst, elev, tair_dem, rh, sun_elevation,
             hour, minutes, coords,
         )
 
         # Cold pixel for wet conditions repretation of the image
         d_cold_pixel = cold_pixel(
-            image, ndvi, ndwi, lst_dem, year, p_top_NDVI, p_coldest_Ts,
-            geometry_image, coords, proj, elev
+            ndvi, ndwi, lst_dem, year, month, p_top_NDVI, p_coldest_Ts,
+            geometry_image, coords, proj, elev,
         )
 
         ts_cold_number = ee.Number(d_cold_pixel.get('temp'))
@@ -120,7 +120,7 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
 
         # Instantaneous net radiation using reanalysis dataset
         rad_inst = radiation_inst(
-            image, elev, lst, emissivity, albedo, tair, rh, rso_inst,
+            elev, lst, emissivity, albedo, tair, rh, rso_inst,
             sun_elevation, cos_zn, ts_cold_elev
         )
 
@@ -129,24 +129,24 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
 
         # Daily ney radiation (rn)
         rad_24h = radiation_24h(
-            image, time_start, tmax, tmin, elev,
+            time_start, tmax, tmin, elev,
             sun_elevation, cos_zn, rso24h
         )
 
         # Hot pixel
         d_hot_pixel = fexp_hot_pixel(
-            image, time_start, ndvi, ndwi, lst_dem, rad_inst, g_inst,
-            year, p_lowest_NDVI, p_hottest_Ts, geometry_image, coords, proj,
+            time_start, ndvi, ndwi, lst_dem, rad_inst, g_inst, year, month,
+             p_lowest_NDVI, p_hottest_Ts, geometry_image, coords, proj,
         )
 
         # Instantaneous sensible heat flux (h)
         h_inst = sensible_heat_flux(
-            image, savi, ux, ts_cold_number, d_hot_pixel, lst_dem,
+            savi, ux, ts_cold_number, d_hot_pixel, lst_dem,
             lst, elev, geometry_image
         )
 
         # Daily evapotranspiration (et)
-        et_24hr = daily_et(image, h_inst, g_inst, rad_inst, lst_dem, rad_24h)
+        et_24hr = daily_et(h_inst, g_inst, rad_inst, lst_dem, rad_24h)
 
     except Exception as e:
         # CGM - We should probably log the exception so the user knows,
@@ -159,7 +159,7 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
     return et_24hr
 
 
-def meteorology(time_start, meteo_inst_source, meteo_daily_source, ndvi,proj):
+def meteorology(time_start, meteo_inst_source, meteo_daily_source):
 
     """
     Parameters
@@ -170,10 +170,6 @@ def meteorology(time_start, meteo_inst_source, meteo_daily_source, ndvi,proj):
         Instantaneous meteorological data.
     meteo_daily_source :  ee.ImageCollection, str
         Daily meteorological data.
-    ndvi : ee.Image
-        Normalized difference vegetation index.
-    proj : ee.Image
-        Landsat image projection.
 
     Returns
     -------
@@ -280,15 +276,13 @@ def meteorology(time_start, meteo_inst_source, meteo_daily_source, ndvi,proj):
     return [tmin, tmax, tair_c, wind_med, rh, rso_inst, swdown24h]
 
 
-def tao_sw(landsat_image, dem, tair, rh, sun_elevation, cos_zn):
+def tao_sw(dem, tair, rh, sun_elevation, cos_zn):
 
     """
     Correct declivity and aspect effects from Land Surface Temperature.
 
     Parameters
     ----------
-    landsat_image : ee.Image
-        Landsat image.
     dem : ee.Image
         Elevation product data [m].
     tair : ee.Image
@@ -308,18 +302,18 @@ def tao_sw(landsat_image, dem, tair, rh, sun_elevation, cos_zn):
     ----------
     """
     # Atmospheric pressure [kPa] (FAO56 Eqn 7)
-    pres = landsat_image.expression(
+    pres = dem.expression(
         '101.3 * ((293 - (0.0065 * Z)) / 293) ** 5.26 ', {'Z': dem})
 
     # Saturated vapor pressure [kPa] (FAO56 Eqn 11)
-    es = landsat_image.expression(
+    es = tair.expression(
         '0.6108 * exp((17.27 * tair) / (tair + 237.3))', {'tair': tair})
 
     # Actual vapor pressure [kPa]  (FAO56 Eqn 10)
     ea = es.multiply(rh).divide(100).rename('ea')
 
     # Water in the atmosphere [mm] (Garrison and Adler (1990))
-    w = landsat_image.expression(
+    w = ea.expression(
         '(0.14 * EA * PATM) + 2.1', {'PATM': pres, 'EA': ea})
 
     # Solar zenith angle over a horizontal surface
@@ -330,7 +324,7 @@ def tao_sw(landsat_image, dem, tair, rh, sun_elevation, cos_zn):
     #cos_theta = solar_zenith_radians.cos()
 
     # Broad-band atmospheric transmissivity (ASCE-EWRI (2005))
-    tao_sw_img = landsat_image.expression(
+    tao_sw_img = pres.expression(
         '0.35 + 0.627 * exp(((-0.00146 * P) / (Kt * ct)) - (0.075 * (W / ct) ** 0.4))',
         {'P': pres, 'W': w, 'Kt': 1.0, 'ct': cos_zn},
     )
@@ -338,15 +332,13 @@ def tao_sw(landsat_image, dem, tair, rh, sun_elevation, cos_zn):
     return tao_sw_img.rename('tao_sw')
 
 
-def cos_terrain(landsat_image, time_start, dem, hour, minutes, coords):
+def cos_terrain(time_start, dem, hour, minutes, coords):
 
     """
     Cosine zenith angle elevation (Allen et al. (2006)).
 
     Parameters
     ----------
-    landsat_image : ee.Image
-        Landsat image.
     time_start : str
         Image property: time start of the image.
     dem : ee.Image
@@ -397,7 +389,7 @@ def cos_terrain(landsat_image, time_start, dem, hour, minutes, coords):
     w = lht.subtract(12).multiply(15).multiply(DEG2RAD)
 
     # Cosine  zenith angle elevation
-    cos_zn = landsat_image.expression(
+    cos_zn = w.expression(
         '-a + b * w_cos + c * w_sin',
         {'a': a, 'b': b, 'c': c, 'w_cos': w.cos(), 'w_sin': w.sin()},
     )
@@ -443,7 +435,7 @@ def tair_dem_correction(tmin, tmax, dem):
 
     return tair_dem.rename("tair_dem")
 
-def lst_correction(landsat_image, time_start, ndwi, lst, dem, tair, rh,
+def lst_correction(time_start, ndwi, lst, dem, tair, rh,
                    sun_elevation, hour, minutes, coords):
 
     """
@@ -451,8 +443,6 @@ def lst_correction(landsat_image, time_start, ndwi, lst, dem, tair, rh,
 
     Parameters
     ----------
-    landsat_image : ee.Image
-        Landsat image.
     time_start : str
         Image property: time start of the image.
     ndwi : ee.Image
@@ -491,7 +481,7 @@ def lst_correction(landsat_image, time_start, ndwi, lst, dem, tair, rh,
     dr = doy.multiply(2 * math.pi / 365).cos().multiply(0.033).add(1)
 
     # Atmospheric pressure [kPa] (FAO56 Eqn 7)
-    pres = landsat_image.expression(
+    pres = lst.expression(
         '101.3 * ((293 - (0.0065 * Z)) / 293) ** 5.26 ', {'Z': dem})
 
     # Solar zenith angle over a horizontal surface
@@ -501,7 +491,7 @@ def lst_correction(landsat_image, time_start, ndwi, lst, dem, tair, rh,
     cos_theta = solar_zenith_radians.cos()
 
     # Air density [Kg m-3]
-    air_dens = landsat_image.expression(
+    air_dens = lst.expression(
         '(1000 * Pair)/(1.01 * LST * 287)', {'Pair': pres, 'LST': lst})
 
     # Temperature lapse rate (0.0065)
@@ -510,15 +500,15 @@ def lst_correction(landsat_image, time_start, ndwi, lst, dem, tair, rh,
     # Added temperature lapse rate
     temp_corr = lst.add(dem.select('elevation').multiply(temp_lapse_rate))
 
-    cos_zn = cos_terrain(landsat_image, time_start, dem, hour, minutes, coords)
+    cos_zn = cos_terrain(time_start, dem, hour, minutes, coords)
 
     # Broad-band atmospheric transmissivity (ASCE-EWRI (2005))
-    tao_sw_img = tao_sw(landsat_image, dem, tair, rh, sun_elevation, cos_zn)
+    tao_sw_img = tao_sw(dem, tair, rh, sun_elevation, cos_zn)
 
     # TODO: CGM Check if that equation could be simplified
 
     # Corrected Land Surface temperature [K] (Zaafar and Farah (2020) Eqn 2)
-    lst_dem = landsat_image.expression(
+    lst_dem = lst.expression(
         'Temp_corr + (Gsc * dr * Transm_corr * cos_zn - Gsc * dr * Transm_corr * cos_zenith_flat) / (air_dens * 1004 * 0.050)',
         {'Temp_corr': temp_corr, 'Gsc': gsc, 'dr': dr, 'Transm_corr': tao_sw_img,
          'cos_zenith_flat': cos_theta, 'cos_zn': cos_zn, 'air_dens': air_dens},
@@ -526,15 +516,15 @@ def lst_correction(landsat_image, time_start, ndwi, lst, dem, tair, rh,
 
     return lst_dem.rename('lst_dem')
 
-def lc_mask(landsat_image, year, geometry_image):
+def lc_mask(month, year, geometry_image, mask_img):
 
     """
     Filtering pre-candidates pixels using a Land cover mask.
 
     Parameters
     ----------
-    landsat_image : ee.Image
-        Prepared Landsat image.
+    month : ee.Number, int
+        Month.
     year : ee.Number, int
         Year.
     geometry_image : ee.Geometry
@@ -549,21 +539,10 @@ def lc_mask(landsat_image, year, geometry_image):
     # Conditions
     cdl_year_min = 2008
     cdl_year_max = 2020
-    # cdl_year_max = ee.Date(
-    #     ee.ImageCollection('USDA/NASS/CDL')
-    #         .limit(1, 'system:time_start', False)
-    #         .first().get('system:time_start')).get('year')
+
     year_condition = ee.Number(year).max(cdl_year_min).min(cdl_year_max)
-    # year_condition = ee.Algorithms.If(ee.Number(year).lte(2007), 2008, year)
 
-    month = ee.Number(ee.Date(landsat_image.get('system:time_start')).get('month'))
     isWinter = ee.Number(month.eq(1).Or(month.eq(2)).Or(month.eq(3)).Or(month.eq(11)).Or(month.eq(12)))
-
-    # month = month.getInfo()
-    # if month == 1 or month == 2 or month == 11 or month == 12:
-    #     isWinter = ee.Number(1)
-    # else:
-    #     isWinter = ee.Number(0)
 
     start = ee.Date.fromYMD(year_condition, 1, 1)
     end = ee.Date.fromYMD(year_condition, 12, 31)
@@ -597,11 +576,11 @@ def lc_mask(landsat_image, year, geometry_image):
     mask = ee.Algorithms.If(
         n_count_lc.gte(3000),
         lc_mask,
-        landsat_image.select(0).updateMask(1))
+        mask_img)
 
     mask = ee.Algorithms.If(
         isWinter.eq(1),
-        landsat_image.select(0).updateMask(1),
+        mask_img,
         mask)
     # mask = landsat_image.select(0).updateMask(1)
 
@@ -642,7 +621,7 @@ def homogeneous_mask(ndvi,proj):
     return ee.Image(sd_mask)
 
 
-def cold_pixel(landsat_image, ndvi, ndwi, lst_dem, year, ndvi_cold, lst_cold,
+def cold_pixel(ndvi, ndwi, lst_dem, year, month, ndvi_cold, lst_cold,
                geometry_image, coords, proj, dem):
 
     """
@@ -650,7 +629,6 @@ def cold_pixel(landsat_image, ndvi, ndwi, lst_dem, year, ndvi_cold, lst_cold,
 
     Parameters
     ----------
-    landsat_image : ee.Image
     ndvi : ee.Image
         Normalized difference vegetation index.
     ndwi : ee.Image
@@ -658,7 +636,9 @@ def cold_pixel(landsat_image, ndvi, ndwi, lst_dem, year, ndvi_cold, lst_cold,
     lst_dem : ee.Image
         Land surface temperature [K].
     year : ee.Number, int
-        Year of the image.
+        Year.
+    month : ee.Number, int
+        Month.
     ndvi_cold : ee.Number, int
         NDVI Percentile value to determinate cold pixel.
     lst_cold : ee.Number, int
@@ -667,6 +647,8 @@ def cold_pixel(landsat_image, ndvi, ndwi, lst_dem, year, ndvi_cold, lst_cold,
         Landsat image geometry.
     coords : ee.Image
         Latitude and longitude coordinates of the image.
+    proj : ee.Dictionary
+        Landsat image projection.
     dem : ee.Image
         Elevation data [m]
 
@@ -696,8 +678,10 @@ def cold_pixel(landsat_image, ndvi, ndwi, lst_dem, year, ndvi_cold, lst_cold,
     lst_neg = lst_dem.multiply(-1).rename('lst_neg').rename('lst_neg')
     lst_nw = lst_dem.updateMask(ndwi.lte(0)).rename('lst_nw')
 
+    # Crea a 0 mask
+    mask = ndvi.select(0).updateMask(1)
     # Land cover mask
-    land_cover_mask = lc_mask(landsat_image, year, geometry_image)
+    land_cover_mask = lc_mask(month, year, geometry_image, mask)
 
     # Creates a homogeneous ndvi mask
     stdev_ndvi = homogeneous_mask(ndvi, proj)
@@ -764,7 +748,7 @@ def cold_pixel(landsat_image, ndvi, ndwi, lst_dem, year, ndvi_cold, lst_cold,
     return d_cold_pixel
 
 
-def radiation_inst(landsat_image, dem, lst, emissivity, albedo,
+def radiation_inst(dem, lst, emissivity, albedo,
                    tair, rh, swdown_inst, sun_elevation, cos_terrain, ts_cold_elev):
 
     """
@@ -772,7 +756,6 @@ def radiation_inst(landsat_image, dem, lst, emissivity, albedo,
 
     Parameters
     ----------
-    landsat_image : ee.Image
     dem : ee.Image
         Digital elevation product [m].
     lst : ee.Image
@@ -803,16 +786,16 @@ def radiation_inst(landsat_image, dem, lst, emissivity, albedo,
 
     """
 
-    rad_long_up = landsat_image.expression(
-        'emi * 5.67e-8 * (LST ** 4)', {'emi': emissivity, 'LST': lst})
+    rad_long_up = lst.expression(
+        'emi * 5.67e-8 * (lst ** 4)', {'emi': emissivity, 'lst': lst})
 
-    tao_sw_img = tao_sw(landsat_image, dem, tair, rh, sun_elevation, cos_terrain)
+    tao_sw_img = tao_sw(dem, tair, rh, sun_elevation, cos_terrain)
 
     log_taosw = tao_sw_img.log()
 
     delta_z = ee.Image((dem.select('elevation').subtract(ee.Number(ts_cold_elev))).multiply(0.0065))
 
-    rad_long_down = landsat_image.expression(
+    rad_long_down = lst.expression(
         '(0.85 * (- log_taosw) ** 0.09) * 5.67e-8 * (n_Ts_cold ** 4)',
         {'log_taosw': log_taosw, 'n_Ts_cold': tair.add(273.15)},
     )
@@ -823,7 +806,7 @@ def radiation_inst(landsat_image, dem, lst, emissivity, albedo,
     cos_zeni = solar_zenith_radians.cos()
     swdown_inst_dem = swdown_inst.multiply(cos_terrain.divide(cos_zeni))
 
-    rn_inst = landsat_image.expression(
+    rn_inst = lst.expression(
         '((1 - alfa) * Rs_down) + Rl_down - Rl_up - ((1 - e_0) * Rl_down) ',
         {'alfa': albedo, 'Rs_down': swdown_inst_dem, 'Rl_down': rad_long_down,
          'Rl_up': rad_long_up, 'e_0': emissivity},
@@ -869,14 +852,13 @@ def soil_heat_flux(rn, ndvi, albedo, lst_dem, ndwi):
     return g.rename('g_inst')
 
 
-def radiation_24h(image, time_start, tmax, tmin, elev, sun_elevation, cos_terrain, rso24h):
+def radiation_24h(time_start, tmax, tmin, elev, sun_elevation, cos_terrain, rso24h):
 
     """
     Daily Net radiation [W m-2] - FAO56
 
     Parameters
     ----------
-    image : ee.Image
     time_start : ee.Date
         Date information of the image.
     tmax : ee.Image
@@ -885,6 +867,10 @@ def radiation_24h(image, time_start, tmax, tmin, elev, sun_elevation, cos_terrai
         Minimum air temperature [Celsius].
     elev : ee.Image
         Digital Elevation information [m].
+    sun_elevation : ee.Number, int
+        Sun elevation information.
+    cos_terrain : ee.Image
+        Solar zenit angle cos (aspect/slope).
     rso24h : ee.Image
         Daily Short wave radiation [W m-2]
 
@@ -910,40 +896,40 @@ def radiation_24h(image, time_start, tmax, tmin, elev, sun_elevation, cos_terrai
     doy = ee.Date(time_start).getRelative('day', 'year').add(1)
 
     # Inverse relative distance earth-sun (FAO56 Eqn 23)
-    dr = image.expression(
+    dr = tmax.expression(
         '1 + (0.033 * cos((2 * pi / 365) * doy))', {'doy': doy, 'pi': math.pi})
 
     # Solar declination [rad] (FAO56 Eqn 24)
-    sd = image.expression(
+    sd = tmax.expression(
         '0.40928 * sin(((2 * pi / 365) * doy) - 1.39)', {'doy': doy, 'pi': math.pi})
 
     # Latitude of the image
-    lat = image.pixelLonLat().select(['latitude']).multiply(DEG2RAD)\
+    lat = tmax.pixelLonLat().select(['latitude']).multiply(DEG2RAD)\
         .rename('latitude')
 
     #  Sunset hour angle [rad] (FAO56 Eqn 25)
-    ws = image.expression('acos(-tan(Lat) * tan(Sd))', {'Lat': lat, 'Sd': sd})
+    ws = tmax.expression('acos(-tan(Lat) * tan(Sd))', {'Lat': lat, 'Sd': sd})
 
     # Extraterrestrial radiation [MJ m-2 d-1] (FAO56 Eqn 21)
-    rad_a = image.expression(
+    rad_a = tmax.expression(
         'Ws * sin(Lat) * sin(Sd) + cos(Lat) * cos(Sd) * sin(Ws)',
         {'Ws': ws, 'Lat': lat, 'Sd': sd},
     )
 
-    ra = image.expression(
+    ra = tmax.expression(
         '((24 * 60) / pi) * Gsc * Dr * rad_a',
         {'pi': math.pi, 'Gsc': gsc, 'Dr': dr, 'rad_a': rad_a},
     )
     # Simplified clear sky solar formulation [MJ m-2 d-1] (FAO56 Eqn 37)
-    rso = image.expression(
+    rso = tmax.expression(
         '(0.75 + 2E-5 * z) * Ra', {'z': elev, 'Ra': ra})
 
     # Net shortwave radiation [MJ m-2 d-1] (FAO56 Eqn 38)
-    rns = image.expression(
+    rns = tmax.expression(
         '(1 - albedo) * Rs', {'Rs': rs, 'albedo': 0.23})
 
     # Actual vapor pressure [MJ m-2 d-1] (FAO56 Eqn 11)
-    ea = image.expression(
+    ea = tmax.expression(
         '0.6108 * (exp((17.27 * T_air) / (T_air + 237.3)))', {'T_air': tmin})
 
     # Rso slope/aspect
@@ -954,7 +940,7 @@ def radiation_24h(image, time_start, tmax, tmin, elev, sun_elevation, cos_terrai
     rso24h_dem = rso.multiply(cos_terrain.divide(cos_zeni))
 
     # Net longwave radiation [MJ m-2 d-1] (FAO56 Eqn 39)
-    rnl = image.expression(
+    rnl = tmax.expression(
         '4.901E-9 * ((Tmax ** 4 + Tmin ** 4) / 2) * (0.34 - 0.14 * sqrt(ea)) * '
         '(1.35 * (Rs / Rso) - 0.35)',
         {'Tmax': tmax.add(273.15), 'Tmin': tmin.add(273.15), 'ea': ea,
@@ -962,7 +948,7 @@ def radiation_24h(image, time_start, tmax, tmin, elev, sun_elevation, cos_terrai
     )
 
     # Net radiation [MJ m-2 d-1] (FAO56 Eqn 40)
-    rn = image.expression('Rns - Rnl', {'Rns': rns, 'Rnl': rnl})
+    rn = tmax.expression('Rns - Rnl', {'Rns': rns, 'Rnl': rnl})
 
     # Convert to W m-2
     rn = rn.multiply(11.6)
@@ -970,7 +956,7 @@ def radiation_24h(image, time_start, tmax, tmin, elev, sun_elevation, cos_terrai
     return rn.rename('rad_24h')
 
 
-def fexp_hot_pixel(landsat_image, time_start, ndvi, ndwi, lst_dem, rn, g, year,
+def fexp_hot_pixel(time_start, ndvi, ndwi, lst_dem, rn, g, year, month,
                    ndvi_hot, lst_hot, geometry_image, coords, proj):
 
     """
@@ -979,7 +965,6 @@ def fexp_hot_pixel(landsat_image, time_start, ndvi, ndwi, lst_dem, rn, g, year,
 
     Parameters
     ----------
-    landsat_image : ee.Image
     time_start : ee.Date
         Date information of the image.
     ndvi : ee.Image
@@ -993,7 +978,9 @@ def fexp_hot_pixel(landsat_image, time_start, ndvi, ndwi, lst_dem, rn, g, year,
     g : ee.Image
         Instantaneous Soil heat flux [W m-2]
     year : ee.Number, int
-        Year of the image.
+        Year.
+    month : ee.Number, int
+        Month.
     ndvi_cold : ee.Number, int
         NDVI Percentile value to determinate cold pixel.
     lst_cold : ee.Number, int
@@ -1002,6 +989,8 @@ def fexp_hot_pixel(landsat_image, time_start, ndvi, ndwi, lst_dem, rn, g, year,
         Image geometry.
     coords : ee.Image
         Latitude and longitude coordinates of the image.
+    proj : ee.Dictionary
+        Landsat image projection.
 
     Returns
     -------
@@ -1030,8 +1019,11 @@ def fexp_hot_pixel(landsat_image, time_start, ndvi, ndwi, lst_dem, rn, g, year,
     lst_neg = lst_dem.multiply(-1).rename('lst_neg')
     lst_nw = lst_dem.updateMask(ndwi.lte(0)).rename('lst_nw')
 
+    # Crea a 0 mask
+    mask = ndvi.select(0).updateMask(1)
+
     # Land cover mask
-    land_cover_mask = lc_mask(landsat_image, year, geometry_image)
+    land_cover_mask = lc_mask(month, year, geometry_image, mask)
 
     # Creates a homogeneous ndvi mask
     stdev_ndvi = homogeneous_mask(ndvi, proj)
@@ -1072,18 +1064,14 @@ def fexp_hot_pixel(landsat_image, time_start, ndvi, ndwi, lst_dem, rn, g, year,
 
     # Precipitation product
     gridmet = ee.ImageCollection('IDAHO_EPSCOR/GRIDMET')\
-        .filterDate(ee.Date(time_start).advance(-60, 'days'), ee.Date(time_start))\
+        .filterDate(ee.Date(time_start).advance(-60, 'days'), ee.Date(time_start))
 
-
-    etr_60mm = gridmet.select('etr').sum()\
-
-    precipt_60mm = gridmet.select('pr').sum()\
-
-
+    etr_60mm = gridmet.select('etr').sum()
+    precipt_60mm = gridmet.select('pr').sum()
     ratio = precipt_60mm.divide(etr_60mm)
 
     # Temperature adjustement offset (Allen2013 Eqn 8)
-    Tfac = landsat_image.expression('2.6 - 13 * ratio', {'ratio': ratio})
+    Tfac = etr_60mm.expression('2.6 - 13 * ratio', {'ratio': ratio})
 
     Tfac = ee.Image(Tfac.where(ratio.gt(0.2), 0)).rename('Tfac')
 
@@ -1121,7 +1109,7 @@ def fexp_hot_pixel(landsat_image, time_start, ndvi, ndwi, lst_dem, rn, g, year,
     return d_hot_pixel
 
 
-def sensible_heat_flux(landsat_image, savi, ux, ts_cold_number, d_hot_pixel,
+def sensible_heat_flux(savi, ux, ts_cold_number, d_hot_pixel,
                        lst_dem, lst, dem, geometry_image):
 
     """
@@ -1129,9 +1117,8 @@ def sensible_heat_flux(landsat_image, savi, ux, ts_cold_number, d_hot_pixel,
 
     Parameters
     ----------
-    landsat_image : ee.Image
     savi : ee.Image
-        Date information of the image.
+        Soil-adjusted vegetation index.
     ux : ee.Image
         Wind speed [m s-1].
     ts_cold_number : ee.Number
@@ -1162,9 +1149,6 @@ def sensible_heat_flux(landsat_image, savi, ux, ts_cold_number, d_hot_pixel,
         Advanced Training and Users Manual. 2002.
 
     """
-
-    # Default parameters
-
     # Vegetation height [m]
     n_veg_height = ee.Number(0.5)
 
@@ -1209,19 +1193,19 @@ def sensible_heat_flux(landsat_image, savi, ux, ts_cold_number, d_hot_pixel,
     n_zom = n_veg_height.multiply(0.123)
 
     # Friction velocity at the weather station. (Allen2002 Eqn 37)
-    i_ufric_ws = landsat_image.expression(
+    i_ufric_ws = lst.expression(
         '(n_K * ux) / log(n_zx / n_zom)',
         {'n_K': n_K, 'n_zx': n_zx, 'n_zom': n_zom, 'ux': ux},
     )
 
     # Wind speed at blending height at the weather station.  (Allen2002 Eqn 29)
-    i_u200 = landsat_image.expression(
+    i_u200 = lst.expression(
         'i_ufric_ws * log(n_height / n_zom) / n_K',
         {'i_ufric_ws': i_ufric_ws, 'n_height': n_height, 'n_zom': n_zom, 'n_K': n_K}
     )
 
     # Momentum roughness length for each pixel.
-    i_zom = landsat_image.expression(
+    i_zom = lst.expression(
         'exp((5.62 * SAVI) - 5.809)', {'SAVI': savi},
     )
 
@@ -1232,7 +1216,7 @@ def sensible_heat_flux(landsat_image, savi, ux, ts_cold_number, d_hot_pixel,
     )
 
     # Friction velocity for each pixel. (Allen2002 Eqn 30)
-    i_ufric = landsat_image.expression(
+    i_ufric = lst.expression(
         '(n_K * u200) / log(height / i_zom)',
         {'u200': i_u200, 'height': n_height, 'i_zom': n_zom, 'n_K': n_K},
     )
@@ -1291,12 +1275,12 @@ def sensible_heat_flux(landsat_image, savi, ux, ts_cold_number, d_hot_pixel,
         n_coef_b = n_dT_hot.subtract(n_coef_a.multiply(n_Ts_hot))
 
         # dT for each pixel
-        i_dT_int = landsat_image.expression(
+        i_dT_int = lst.expression(
             '(n_coef_a * i_lst_med_dem) + n_coef_b',
             {'n_coef_a': n_coef_a, 'n_coef_b': n_coef_b, 'i_lst_med_dem': lst_dem},
         )
 
-        # LL - Just testing other approaches for mountains areas
+        # LL - Just testing others approaches for mountains areas
         '''
         dt_std = i_dT_int.select('dt').reduceRegion(
             reducer=ee.Reducer.stdDev(),
@@ -1309,10 +1293,9 @@ def sensible_heat_flux(landsat_image, savi, ux, ts_cold_number, d_hot_pixel,
         '''
 
         # Air temperature (Ta) for each pixel (Ta = Ts-dT)
-        i_Ta = landsat_image.expression(
+        i_Ta = lst.expression(
             'i_lst_med - i_dT_int', {'i_lst_med': lst, 'i_dT_int': i_dT_int})
 
-        # ro (ρ) - air density (kg/m3)
         # ro=-0.0046.*Ta+2.5538
         i_ro = i_Ta.expression('(-0.0046 * i_Ta) + 2.5538', {'i_Ta': i_Ta})
 
@@ -1332,17 +1315,14 @@ def sensible_heat_flux(landsat_image, savi, ux, ts_cold_number, d_hot_pixel,
         # Limiting L values to avoid errors in rah.
         i_L_int = i_L_int.where(i_L_int.lt(-1000), 1000)
 
-        # Stability corrections for momentum and heat transport.
-        img = landsat_image
-
         # Stability corrections for stable conditions
-        i_psim_200 = img.expression(
+        i_psim_200 = lst.expression(
             '-5 * (height / i_L_int)', {'height': 200.0, 'i_L_int': i_L_int},
         )
-        i_psih_2 = img.expression(
+        i_psih_2 = lst.expression(
             '-5 * (height / i_L_int)', {'height': 2.0, 'i_L_int': i_L_int},
         )
-        i_psih_01 = img.expression(
+        i_psih_01 = lst.expression(
             '-5 * (height / i_L_int)', {'height': 0.1, 'i_L_int': i_L_int},
         )
 
@@ -1447,14 +1427,13 @@ def sensible_heat_flux(landsat_image, savi, ux, ts_cold_number, d_hot_pixel,
     return i_H_final.rename('h_inst')
 
 
-def daily_et(landsat_image, h_inst, g_inst, rn_inst, lst_dem, rad_24h):
+def daily_et(h_inst, g_inst, rn_inst, lst_dem, rad_24h):
 
     """
     Daily Evapotranspiration [mm day-1]
 
     Parameters
     ----------
-    landsat_image : ee.Image
     h_inst : ee.Image
         Instantaneous Sensible heat flux [W m-2].
     g_inst : ee.Image
@@ -1511,11 +1490,31 @@ def daily_et(landsat_image, h_inst, g_inst, rn_inst, lst_dem, rad_24h):
     return i_ET24h_calc.rename('et')
 
 
-def et_fraction(landsat_image, time_start, et,
+def et_fraction(time_start, et,
                 et_reference_source, et_reference_band, et_reference_factor):
 
-    """ET Fraction"""
+    """ET Fraction
 
+    Parameters
+    ----------
+    time_start : ee.Image
+        Instantaneous Sensible heat flux [W m-2].
+    et : ee.Image
+        Daily evapotranspiration (et) [mm day-1]
+    et_reference_source : ee.ImageCollection, str
+        ET reference collection
+    et_reference_band : str
+        ETr band name.
+    et_reference_factor : ee.Number, int
+        ETr factor.
+
+    Returns
+    -------
+    ee.Image
+
+    References
+    ----------
+    """
     date = ee.Date(time_start)
     start_date = ee.Date(utils.date_to_time_0utc(date))
 
