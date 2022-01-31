@@ -315,18 +315,19 @@ def test_cloud_mask_C2_l457(img_value, expected):
 @pytest.mark.parametrize(
     "img_value, expected",
     [
-        # ['0000000000000000', 0],  # Designated Fill
-        # ['0000000000000001', 1],
+        # GEESEBAL only masks clouds for QA_PIXEL values 21824 and 21952
+        # '0000000000000000', 0],  # Designated Fill
+        # ['0000000000000001', 0],
         # ['0000000000000010', 0],  # Dilated Cloud
-        # ['0000000000000100', 0],  # Cirrus
-        # ['0000000000001000', 0],  # Cloud
-        # ['0000000000010000', 0],  # Cloud Shadow
-        # ['0000000000100000', 0],  # Snow
-        # ['0000000001000000', 0],  # Clear
-        # ['0000000010000000', 1],  # Water
-        ['101010101000000', 1],  # Clear
-        ['101010111000000', 1],  # Water
-        ['000010101000010', 1],  #
+        ['0000000000000100', 0],  # Cirrus
+        ['0000000000001000', 0],  # Cloud
+        ['0000000000010000', 0],  # Cloud Shadow
+        ['0000000000100000', 0],  # Snow
+        ['0000000001000000', 0],  # Clear
+        ['0000000010000000', 0],  # Water
+        ['0101010101000000', 1],  # Clear
+        ['0101010111000000', 1],  # Water
+        ['0000010101000010', 0],
     ]
 )
 def test_cloud_mask_C2_l8(img_value, expected):
