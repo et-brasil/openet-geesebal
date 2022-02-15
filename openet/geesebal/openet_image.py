@@ -184,14 +184,15 @@ class Image():
         # DEADBEEF - Should the supported image collection IDs and helper
         # function mappings be set in a property or method of the Image class?
         collection_methods = {
-            'LANDSAT/LC08/C01/T1_SR': 'from_landsat_c1_sr',
-            'LANDSAT/LE07/C01/T1_SR': 'from_landsat_c1_sr',
-            'LANDSAT/LT05/C01/T1_SR': 'from_landsat_c1_sr',
             'LANDSAT/LT04/C01/T1_SR': 'from_landsat_c1_sr',
-            'LANDSAT/LC08/C02/T1_L2': 'from_landsat_c2_sr',
-            'LANDSAT/LE07/C02/T1_L2': 'from_landsat_c2_sr',
-            'LANDSAT/LT05/C02/T1_L2': 'from_landsat_c2_sr',
+            'LANDSAT/LT05/C01/T1_SR': 'from_landsat_c1_sr',
+            'LANDSAT/LE07/C01/T1_SR': 'from_landsat_c1_sr',
+            'LANDSAT/LC08/C01/T1_SR': 'from_landsat_c1_sr',
             'LANDSAT/LT04/C02/T1_L2': 'from_landsat_c2_sr',
+            'LANDSAT/LT05/C02/T1_L2': 'from_landsat_c2_sr',
+            'LANDSAT/LE07/C02/T1_L2': 'from_landsat_c2_sr',
+            'LANDSAT/LC08/C02/T1_L2': 'from_landsat_c2_sr',
+            'LANDSAT/LC09/C02/T1_L2': 'from_landsat_c2_sr',
         }
 
         try:
@@ -263,7 +264,7 @@ class Image():
         albedo = ee.Algorithms.If(
             spacecraft_id.compareTo(ee.String('LANDSAT_8')),
             landsat.albedo_l457(prep_image),
-            landsat.albedo_l8(prep_image))
+            landsat.albedo_l89(prep_image))
 
         cloud_mask = ee.Algorithms.If(
             spacecraft_id.compareTo(ee.String('LANDSAT_8')),
@@ -338,6 +339,8 @@ class Image():
                           'SR_B5', 'SR_B7', 'ST_B6', 'QA_PIXEL'],
             'LANDSAT_8': ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5',
                           'SR_B6', 'SR_B7', 'ST_B10', 'QA_PIXEL'],
+            'LANDSAT_9': ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5',
+                          'SR_B6', 'SR_B7', 'ST_B10', 'QA_PIXEL'],
         })
         output_bands = ee.Dictionary({
             'LANDSAT_4': ['blue', 'green', 'red', 'nir',
@@ -347,6 +350,8 @@ class Image():
             'LANDSAT_7': ['blue', 'green', 'red', 'nir',
                           'swir1', 'swir2', 'lst', 'QA_PIXEL'],
             'LANDSAT_8': ['ultra_blue', 'blue', 'green', 'red', 'nir',
+                          'swir1', 'swir2', 'lst', 'QA_PIXEL'],
+            'LANDSAT_9': ['ultra_blue', 'blue', 'green', 'red', 'nir',
                           'swir1', 'swir2', 'lst', 'QA_PIXEL'],
         })
         scalars = ee.Dictionary({
@@ -358,12 +363,15 @@ class Image():
                           0.0000275, 0.0000275, 0.00341802, 1],
             'LANDSAT_8': [0.0000275, 0.0000275, 0.0000275, 0.0000275, 0.0000275,
                           0.0000275, 0.0000275, 0.00341802, 1],
+            'LANDSAT_9': [0.0000275, 0.0000275, 0.0000275, 0.0000275, 0.0000275,
+                          0.0000275, 0.0000275, 0.00341802, 1],
         })
         offsets = ee.Dictionary({
             'LANDSAT_4': [-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 1],
             'LANDSAT_5': [-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 1],
             'LANDSAT_7': [-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 1],
             'LANDSAT_8': [-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 1],
+            'LANDSAT_9': [-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 1],
         })
 
         prep_image = sr_image \
@@ -374,12 +382,12 @@ class Image():
         albedo = ee.Algorithms.If(
             spacecraft_id.compareTo(ee.String('LANDSAT_8')),
             landsat.albedo_l457(prep_image),
-            landsat.albedo_l8(prep_image))
+            landsat.albedo_l89(prep_image))
 
         cloud_mask = ee.Algorithms.If(
             spacecraft_id.compareTo(ee.String('LANDSAT_8')),
             landsat.cloud_mask_C2_l457(sr_image),
-            landsat.cloud_mask_C2_l8(sr_image))
+            landsat.cloud_mask_C2_l89(sr_image))
 
         # # Default the cloudmask flags to True if they were not
         # # Eventually these will probably all default to True in openet.core

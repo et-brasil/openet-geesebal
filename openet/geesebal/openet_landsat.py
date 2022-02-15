@@ -217,8 +217,8 @@ def albedo_l457(landsat_image):
     return albedo
 
 
-def albedo_l8(landsat_image):
-    """Albedo (Landsat 8)
+def albedo_l89(landsat_image):
+    """Albedo (Landsat 8/9)
 
     Parameters
     ----------
@@ -349,8 +349,8 @@ def cloud_mask_C2_l457(landsat_image):
     return mask
 
 
-def cloud_mask_C2_l8(landsat_image):
-    """Cloud mask (Landsat 8)
+def cloud_mask_C2_l89(landsat_image):
+    """Cloud mask (Landsat 8/9)
 
     Parameters
     ----------
