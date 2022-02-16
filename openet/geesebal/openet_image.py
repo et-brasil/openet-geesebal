@@ -379,15 +379,26 @@ class Image():
             .multiply(ee.Image.constant(ee.List(scalars.get(spacecraft_id)))) \
             .add(ee.Image.constant(ee.List(offsets.get(spacecraft_id))))
 
+        # CGM - Need to come up with a more robust approach,
+        #   but this seems to work for now
         albedo = ee.Algorithms.If(
-            spacecraft_id.compareTo(ee.String('LANDSAT_8')),
+            ee.List(['LANDSAT_8', 'LANDSAT_9']).contains(spacecraft_id),
+            landsat.albedo_l89(prep_image),
             landsat.albedo_l457(prep_image),
-            landsat.albedo_l89(prep_image))
-
+        )
         cloud_mask = ee.Algorithms.If(
-            spacecraft_id.compareTo(ee.String('LANDSAT_8')),
+            ee.List(['LANDSAT_8', 'LANDSAT_9']).contains(spacecraft_id),
+            landsat.cloud_mask_C2_l89(sr_image),
             landsat.cloud_mask_C2_l457(sr_image),
-            landsat.cloud_mask_C2_l89(sr_image))
+        )
+        # albedo = ee.Algorithms.If(
+        #     spacecraft_id.compareTo(ee.String('LANDSAT_8')),
+        #     landsat.albedo_l457(prep_image),
+        #     landsat.albedo_l89(prep_image))
+        # cloud_mask = ee.Algorithms.If(
+        #     spacecraft_id.compareTo(ee.String('LANDSAT_8')),
+        #     landsat.cloud_mask_C2_l457(sr_image),
+        #     landsat.cloud_mask_C2_l89(sr_image))
 
         # # Default the cloudmask flags to True if they were not
         # # Eventually these will probably all default to True in openet.core
