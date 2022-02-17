@@ -555,6 +555,7 @@ def lc_mask(month, year, geometry_image, mask_img):
     crop2 = crop2.where(crop2, 1).unmask(0)
 
     # Land cover mask - total croplands
+    # CGM - Should probably rename to something different than the function name
     lc_mask = crop1.add(crop2)
 
     lc_mask = lc_mask.updateMask(lc_mask.eq(1))
@@ -566,15 +567,9 @@ def lc_mask(month, year, geometry_image, mask_img):
                       geometry=geometry_image, maxPixels=10e14)
     n_count_lc = ee.Number(count_land_cover_pixels.get('land_cover_pixels'))
 
-    mask = ee.Algorithms.If(
-        n_count_lc.gte(3000),
-        lc_mask,
-        mask_img)
+    mask = ee.Algorithms.If(n_count_lc.gte(3000), lc_mask, mask_img)
 
-    mask = ee.Algorithms.If(
-        isWinter.eq(1),
-        mask_img,
-        mask)
+    mask = ee.Algorithms.If(isWinter.eq(1), mask_img, mask)
     # mask = landsat_image.select(0).updateMask(1)
 
     return ee.Image(mask)

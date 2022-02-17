@@ -232,14 +232,14 @@ def test_albedo_l457_band_name():
         [0.7, 0.3403],
     ]
 )
-def test_albedo_l8_values(nir, expected, tol=0.0001):
+def test_albedo_l89_values(nir, expected, tol=0.0001):
     """The default image is all 0.2 except NIR"""
-    output = utils.constant_image_value(landsat.albedo_l8(landsat_image(nir=nir)))
+    output = utils.constant_image_value(landsat.albedo_l89(landsat_image(nir=nir)))
     assert abs(output - expected) <= tol
 
 
-def test_albedo_l8_band_name():
-    output = landsat.albedo_l8(landsat_image()).getInfo()['bands'][0]['id']
+def test_albedo_l89_band_name():
+    output = landsat.albedo_l89(landsat_image()).getInfo()['bands'][0]['id']
     assert output == 'albedo'
 
 
@@ -330,7 +330,7 @@ def test_cloud_mask_C2_l457(img_value, expected):
         ['0000010101000010', 0],
     ]
 )
-def test_cloud_mask_C2_l8(img_value, expected):
+def test_cloud_mask_C2_l89(img_value, expected):
     input_img = ee.Image.constant(int(img_value, 2)).rename(['QA_PIXEL'])
-    output_img = landsat.cloud_mask_C2_l8(input_img)
+    output_img = landsat.cloud_mask_C2_l89(input_img)
     assert utils.constant_image_value(output_img) == expected
