@@ -532,7 +532,7 @@ def lc_mask(month, year, geometry_image, mask_img):
     """
     # Conditions
     cdl_year_min = 2008
-    cdl_year_max = 2020
+    cdl_year_max = 2021
 
     year_condition = ee.Number(year).max(cdl_year_min).min(cdl_year_max)
 
