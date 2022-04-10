@@ -316,12 +316,25 @@ def test_Collection_build_filter_dates_lc09(collection, start_date, end_date):
     assert parse_scene_id(output) == []
 
 
-def test_Collection_build_filter_args():
+def test_Collection_build_filter_args_keyword():
     # Need to test with two collections to catch bug when deepcopy isn't used
     collections = ['LANDSAT/LC08/C01/T1_SR', 'LANDSAT/LE07/C01/T1_SR']
     wrs2_filter = [
         {'type': 'equals', 'leftField': 'WRS_PATH', 'rightValue': 44},
         {'type': 'equals', 'leftField': 'WRS_ROW', 'rightValue': 33}]
+    coll_obj = default_coll_obj(
+        collections=collections,
+        geometry=ee.Geometry.Rectangle(-125, 35, -120, 40),
+        filter_args={c: wrs2_filter for c in collections})
+    output = utils.getinfo(coll_obj._build(variables=['et']))
+    assert {x[5:11] for x in parse_scene_id(output)} == {'044033'}
+
+
+def test_Collection_build_filter_args_eeobject():
+    # Need to test with two collections to catch bug when deepcopy isn't used
+    collections = ['LANDSAT/LC08/C02/T1_L2', 'LANDSAT/LE07/C02/T1_L2']
+    wrs2_filter = ee.Filter.And(ee.Filter.equals('WRS_PATH', 44),
+                                ee.Filter.equals('WRS_ROW', 33))
     coll_obj = default_coll_obj(
         collections=collections,
         geometry=ee.Geometry.Rectangle(-125, 35, -120, 40),
