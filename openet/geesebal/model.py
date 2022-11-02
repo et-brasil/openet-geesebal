@@ -177,16 +177,16 @@ def meteorology(time_start, meteo_inst_source, meteo_daily_source):
     Notes
     -----
     Accepted collections:
-    Inst : NASA/NLDAS/FORA0125_H002
-    Daily : IDAHO_EPSCOR/GRIDMET
+    Inst : ECMWF/ERA5_LAND/HOURLY
 
     References
     ----------
     """
     time_start = ee.Number(time_start)
 
-    meteorology_daily = ee.ImageCollection(meteo_daily_source)\
-        .filterDate(ee.Date(time_start).advance(-1, 'day'), ee.Date(time_start))
+    meteorology_daily = ee.ImageCollection(meteo_inst_source)\
+        .filterDate(ee.Date(time_start).advance(-11,'hour'),ee.Date(time_start).advance(13,'hour'))\
+
     meteorology_inst_collection = ee.ImageCollection(meteo_inst_source)
 
     # Linear interpolation
@@ -205,37 +205,44 @@ def meteorology(time_start, meteo_inst_source, meteo_daily_source):
 
     # Daily variables
     # Incoming shorwave down [W m-2]
-    swdown24h = meteorology_daily.select('srad').first().rename('short_wave_down')
+    swdown24h = meteorology_daily.select('surface_solar_radiation_downwards_hourly').mean()\
+        .divide(3600).rename('short_wave_down')
 
-    tmin = meteorology_daily.select('tmmn').first().rename('tmin')
-    tmax = meteorology_daily.select('tmmx').first().rename('tmax')
+    tmin = meteorology_daily.select('temperature_2m').min().subtract(273.15).rename('tmin')
+    tmax = meteorology_daily.select('temperature_2m').max().subtract(273.15).rename('tmax')
 
     # Instantaneous short wave radiation [W m-2]
-    rso_inst = next_image.select('shortwave_radiation')\
-        .subtract(previous_image.select('shortwave_radiation'))\
-        .multiply(delta_time).add(previous_image.select('shortwave_radiation'))\
-        .rename('rso_inst')
+    rso_inst = next_image.select('surface_solar_radiation_downwards_hourly')\
+        .subtract(previous_image.select('surface_solar_radiation_downwards_hourly'))\
+        .multiply(delta_time).add(previous_image.select('surface_solar_radiation_downwards_hourly'))\
+        .divide(3600).rename('rso_inst')
 
     # Specific humidity [Kg Kg-1]
-    q_med = next_image.select('specific_humidity')\
-        .subtract(previous_image.select('specific_humidity'))\
-        .multiply(delta_time).add(previous_image.select('specific_humidity'))
+    # q_med = next_image.select('specific_humidity') \
+    #     .subtract(previous_image.select('specific_humidity')) \
+    #     .multiply(delta_time).add(previous_image.select('specific_humidity'))
+
+    # Dew point temperature [C]
+    tdew_c = next_image.select('dewpoint_temperature_2m') \
+        .subtract(previous_image.select('dewpoint_temperature_2m')) \
+        .multiply(delta_time).add(previous_image.select('dewpoint_temperature_2m')) \
+        .subtract(273.15)
 
     # Air temperature [K]
-    tair_c = next_image.select('temperature')\
-        .subtract(previous_image.select('temperature'))\
-        .multiply(delta_time).add(previous_image.select('temperature'))\
-        .rename('tair')
+    tair_c = next_image.select('temperature_2m')\
+        .subtract(previous_image.select('temperature_2m'))\
+        .multiply(delta_time).add(previous_image.select('temperature_2m'))\
+        .subtract(273.15).rename('tair')
 
     # Wind speed u [m s-1]
-    wind_u = next_image.select('wind_u')\
-        .subtract(previous_image.select('wind_u'))\
-        .multiply(delta_time).add(previous_image.select('wind_u'))
+    wind_u = next_image.select('u_component_of_wind_10m')\
+        .subtract(previous_image.select('u_component_of_wind_10m'))\
+        .multiply(delta_time).add(previous_image.select('u_component_of_wind_10m'))
 
     # Wind speed u [m s-1]
-    wind_v = next_image.select('wind_v')\
-        .subtract(previous_image.select('wind_v'))\
-        .multiply(delta_time).add(previous_image.select('wind_v'))
+    wind_v = next_image.select('v_component_of_wind_10m')\
+        .subtract(previous_image.select('v_component_of_wind_10m'))\
+        .multiply(delta_time).add(previous_image.select('v_component_of_wind_10m'))
 
     wind_med = wind_u.expression(
         'sqrt(ux_u ** 2 + ux_v ** 2)', {'ux_u': wind_u, 'ux_v': wind_v},
@@ -246,13 +253,15 @@ def meteorology(time_start, meteo_inst_source, meteo_daily_source):
         'ux * (4.87) / log(67.8 * z - 5.42)', {'ux': wind_med, 'z': 10.0})
 
     # Pressure [kPa]
-    p_med = next_image.select('pressure')\
-        .subtract(previous_image.select('pressure'))\
-        .multiply(delta_time).add(previous_image.select('pressure'))\
-        .divide(ee.Number(1000))
+    # p_med = next_image.select('pressure')\
+    #     .subtract(previous_image.select('pressure'))\
+    #     .multiply(delta_time).add(previous_image.select('pressure'))\
+    #     .divide(ee.Number(1000))
 
     # Actual vapor pressure [kPa] (Shuttleworth Eqn 2.10)
-    ea = p_med.expression('(1 / 0.622) * Q * P', {'Q': q_med, 'P': p_med})
+    # ea = p_med.expression('(1 / 0.622) * Q * P', {'Q': q_med, 'P': p_med})
+    ea = tair_c.expression(
+        '0.6108 * (exp((17.27 * T_dew) / (T_dew + 237.3)))', {'T_dew': tdew_c})
 
     # Saturated vapor pressure [kPa] (FAO56 Eqn 11)
     esat = tair_c.expression(
@@ -262,8 +271,8 @@ def meteorology(time_start, meteo_inst_source, meteo_daily_source):
     rh = ea.divide(esat).multiply(100).rename('RH')
 
     # Resample
-    tmin = tmin.subtract(273.15).resample('bilinear')
-    tmax = tmax.subtract(273.15).resample('bilinear')
+    tmin = tmin.resample('bilinear')
+    tmax = tmax.resample('bilinear')
     rso_inst = rso_inst.resample('bilinear')
     tair_c = tair_c.resample('bilinear')
     wind_med = wind_med.resample('bilinear')

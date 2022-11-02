@@ -26,8 +26,8 @@ class Image():
 
     def __init__(
             self, image,
-            meteorology_source_inst='NASA/NLDAS/FORA0125_H002',
-            meteorology_source_daily='IDAHO_EPSCOR/GRIDMET',
+            meteorology_source_inst='ECMWF/ERA5_LAND/HOURLY',
+            meteorology_source_daily='ECMWF/ERA5_LAND/HOURLY',
             elev_source='USGS/SRTMGL1_003',
             ndvi_cold=5,
             ndvi_hot=10,
