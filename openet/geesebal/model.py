@@ -178,14 +178,16 @@ def meteorology(time_start, meteo_inst_source, meteo_daily_source):
     -----
     Accepted collections:
     Inst : ECMWF/ERA5_LAND/HOURLY
+    Daily : projects/openet/assets/meteorology/era5land/na/daily
+            projects/openet/assets/meteorology/era5land/sa/daily
 
     References
     ----------
     """
     time_start = ee.Number(time_start)
 
-    meteorology_daily = ee.ImageCollection(meteo_inst_source)\
-        .filterDate(ee.Date(time_start).advance(-11,'hour'),ee.Date(time_start).advance(13,'hour'))\
+    meteorology_daily = ee.ImageCollection(meteo_daily_source) \
+        .filterDate(ee.Date(time_start).advance(-1, 'day'), ee.Date(time_start))
 
     meteorology_inst_collection = ee.ImageCollection(meteo_inst_source)
 
@@ -205,11 +207,10 @@ def meteorology(time_start, meteo_inst_source, meteo_daily_source):
 
     # Daily variables
     # Incoming shorwave down [W m-2]
-    swdown24h = meteorology_daily.select('surface_solar_radiation_downwards_hourly').mean()\
-        .divide(3600).rename('short_wave_down')
+    swdown24h = meteorology_daily.select('surface_solar_radiation_downwards').first().rename('short_wave_down')
 
-    tmin = meteorology_daily.select('temperature_2m').min().subtract(273.15).rename('tmin')
-    tmax = meteorology_daily.select('temperature_2m').max().subtract(273.15).rename('tmax')
+    tmin = meteorology_daily.select('temperature_2m_min').first().rename('tmin')
+    tmax = meteorology_daily.select('temperature_2m_max').first().rename('tmax')
 
     # Instantaneous short wave radiation [W m-2]
     rso_inst = next_image.select('surface_solar_radiation_downwards_hourly')\
