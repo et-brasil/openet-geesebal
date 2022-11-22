@@ -210,8 +210,9 @@ def meteorology(time_start, meteo_inst_source, meteo_daily_source):
     swdown24h = meteorology_daily.select('surface_solar_radiation_downwards').first()\
         .divide(24*3600).rename('short_wave_down')
 
-    tmin = meteorology_daily.select('temperature_2m_min').first().rename('tmin')
-    tmax = meteorology_daily.select('temperature_2m_max').first().rename('tmax')
+    # Min and Max air temperature [K]
+    tmin = meteorology_daily.select('temperature_2m_min').first().subtract(273.15).rename('tmin')
+    tmax = meteorology_daily.select('temperature_2m_max').first().subtract(273.15).rename('tmax')
 
     # Instantaneous short wave radiation [W m-2]
     rso_inst = next_image.select('surface_solar_radiation_downwards_hourly')\
