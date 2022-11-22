@@ -207,7 +207,8 @@ def meteorology(time_start, meteo_inst_source, meteo_daily_source):
 
     # Daily variables
     # Incoming shorwave down [W m-2]
-    swdown24h = meteorology_daily.select('surface_solar_radiation_downwards').first().rename('short_wave_down')
+    swdown24h = meteorology_daily.select('surface_solar_radiation_downwards').first()\
+        .divide(24*3600).rename('short_wave_down')
 
     tmin = meteorology_daily.select('temperature_2m_min').first().rename('tmin')
     tmax = meteorology_daily.select('temperature_2m_max').first().rename('tmax')
