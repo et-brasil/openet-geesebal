@@ -218,7 +218,7 @@ def meteorology(time_start, meteo_inst_source, meteo_daily_source):
     rso_inst = next_image.select('surface_solar_radiation_downwards_hourly')\
         .subtract(previous_image.select('surface_solar_radiation_downwards_hourly'))\
         .multiply(delta_time).add(previous_image.select('surface_solar_radiation_downwards_hourly'))\
-        .divide(3600).rename('rso_inst')
+        .divide(24*3600).rename('rso_inst')
 
     # Specific humidity [Kg Kg-1]
     # q_med = next_image.select('specific_humidity') \
