@@ -584,7 +584,7 @@ def lc_mask(month, year, geometry_image, mask_img):
     mask = ee.Algorithms.If(isWinter.eq(1), mask_img, mask)
     # mask = landsat_image.select(0).updateMask(1)
 
-    return ee.Image(mask)
+    return ee.Image(1)
 
 
 def homogeneous_mask(ndvi, proj):
