@@ -274,13 +274,13 @@ def meteorology(time_start, meteo_inst_source, meteo_daily_source):
     rh = ea.divide(esat).multiply(100).rename('RH')
 
     # Resample
-    tmin = ee.Image(15)#tmin.resample('bilinear')
-    tmax = ee.Image(30)#tmax.resample('bilinear')
-    rso_inst = ee.Image(800)#rso_inst.resample('bilinear')
-    tair_c = ee.Image(25)#tair_c.resample('bilinear')
-    wind_med = ee.Image(2)#wind_med.resample('bilinear')
-    rh = ee.Image(50)#rh.resample('bilinear')
-    swdown24h = ee.Image(240)#swdown24h.resample('bilinear')
+    tmin = tmin.resample('bilinear')
+    tmax = tmax.resample('bilinear')
+    rso_inst = rso_inst.resample('bilinear')
+    tair_c = tair_c.resample('bilinear')
+    wind_med = wind_med.resample('bilinear')
+    rh = rh.resample('bilinear')
+    swdown24h = swdown24h.resample('bilinear')
 
     return [tmin, tmax, tair_c, wind_med, rh, rso_inst, swdown24h]
 
@@ -689,31 +689,29 @@ def cold_pixel(ndvi, ndwi, lst_dem, year, month, ndvi_cold, lst_cold,
     images = pos_ndvi.addBands([ndvi, ndvi_neg, pos_ndvi, lst_neg, lst_nw,
                                 coords, dem.toFloat()])
 
-    d_perc_top_NDVI = (images.select('ndvi_neg')\
-        # .updateMask(land_cover_mask)\
+    d_perc_top_NDVI = images.select('ndvi_neg')\
+        .updateMask(land_cover_mask)\
         .updateMask(stdev_ndvi)\
         .reduceRegion(reducer=ee.Reducer.percentile([ndvi_cold]),
                       geometry=geometry_image, scale=30, maxPixels=1e9)\
-        .combine(ee.Dictionary({'ndvi_neg': 100}), overwrite=False))
+        .combine(ee.Dictionary({'ndvi_neg': 100}), overwrite=False)
 
     n_perc_top_NDVI = ee.Number(d_perc_top_NDVI.get('ndvi_neg'))
 
-    i_top_NDVI = (images\
-        # .updateMask(land_cover_mask)\
-        .updateMask(stdev_ndvi)\
-        .updateMask(images.select('ndvi_neg').lte(n_perc_top_NDVI)))
+    i_top_NDVI = images.updateMask(land_cover_mask).updateMask(stdev_ndvi)\
+        .updateMask(images.select('ndvi_neg').lte(n_perc_top_NDVI))
 
-    d_perc_low_LST = (i_top_NDVI.select('lst_nw')\
-        # .updateMask(land_cover_mask)\
+    d_perc_low_LST = i_top_NDVI.select('lst_nw')\
+        .updateMask(land_cover_mask)\
         .updateMask(stdev_ndvi)\
         .reduceRegion(reducer=ee.Reducer.percentile([lst_cold]),
                       geometry=geometry_image, scale=30, maxPixels=1e9)\
-        .combine(ee.Dictionary({'lst_nw': 350}), overwrite=False))
+        .combine(ee.Dictionary({'lst_nw': 350}), overwrite=False)
 
     n_perc_low_LST = ee.Number(d_perc_low_LST.get('lst_nw'))
 
-    i_cold_lst = (i_top_NDVI#.updateMask(land_cover_mask)\
-        .updateMask(i_top_NDVI.select('lst_nw').lte(n_perc_low_LST)))
+    i_cold_lst = i_top_NDVI.updateMask(land_cover_mask)\
+        .updateMask(i_top_NDVI.select('lst_nw').lte(n_perc_low_LST))
 
     # Filtes
     c_lst_cold20 = i_cold_lst.updateMask(images.select('lst_nw').gte(200))
@@ -1036,29 +1034,28 @@ def fexp_hot_pixel(time_start, ndvi, ndwi, lst_dem, rn, g, year, month,
     images = pos_ndvi.addBands([
         ndvi, ndvi_neg, rn, g, pos_ndvi, lst_neg, lst_nw, coords])
 
-    d_perc_down_ndvi = (images.select('post_ndvi')\
-        #.updateMask(land_cover_mask)\
+    d_perc_down_ndvi = images.select('post_ndvi')\
+        .updateMask(land_cover_mask)\
         .updateMask(stdev_ndvi)\
         .reduceRegion(reducer=ee.Reducer.percentile([ndvi_hot]),
                       geometry=geometry_image, scale=30, maxPixels=1e9)\
-        .combine(ee.Dictionary({'post_ndvi': 100}), overwrite=False))
+        .combine(ee.Dictionary({'post_ndvi': 100}), overwrite=False)
     n_perc_low_NDVI = ee.Number(d_perc_down_ndvi.get('post_ndvi'))
 
-    i_low_NDVI = (images#.updateMask(land_cover_mask)\
-        .updateMask(images.select('post_ndvi').lte(n_perc_low_NDVI)))
+    i_low_NDVI = images.updateMask(land_cover_mask)\
+        .updateMask(images.select('post_ndvi').lte(n_perc_low_NDVI))
 
-    d_perc_top_lst = (i_low_NDVI.select('lst_neg')\
-        #.updateMask(land_cover_mask)\
+    d_perc_top_lst = i_low_NDVI.select('lst_neg')\
+        .updateMask(land_cover_mask)\
         .updateMask(stdev_ndvi)\
         .reduceRegion(reducer=ee.Reducer.percentile([lst_hot]),
                       geometry=geometry_image, scale=30, maxPixels=1e9)\
-        .combine(ee.Dictionary({'lst_neg': 350}), overwrite=False))
+        .combine(ee.Dictionary({'lst_neg': 350}), overwrite=False)
 
     n_perc_top_lst = ee.Number(d_perc_top_lst.get('lst_neg'))
 
-    i_top_LST = (i_low_NDVI#.updateMask(land_cover_mask)
-        .updateMask(stdev_ndvi)\
-        .updateMask(i_low_NDVI.select('lst_neg').lte(n_perc_top_lst)))
+    i_top_LST = i_low_NDVI.updateMask(land_cover_mask).updateMask(stdev_ndvi)\
+        .updateMask(i_low_NDVI.select('lst_neg').lte(n_perc_top_lst))
 
     c_lst_hot_int = i_top_LST.select('lst_nw').min(1).max(1).int().rename('int')
     c_lst_hotpix = i_top_LST.addBands(c_lst_hot_int)
