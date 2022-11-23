@@ -263,7 +263,7 @@ def meteorology(time_start, meteo_inst_source, meteo_daily_source):
 
     # Actual vapor pressure [kPa] (Shuttleworth Eqn 2.10)
     # ea = p_med.expression('(1 / 0.622) * Q * P', {'Q': q_med, 'P': p_med})
-    ea = tair_c.expression(
+    ea = tdew_c.expression(
         '0.6108 * (exp((17.27 * T_dew) / (T_dew + 237.3)))', {'T_dew': tdew_c})
 
     # Saturated vapor pressure [kPa] (FAO56 Eqn 11)
@@ -274,13 +274,13 @@ def meteorology(time_start, meteo_inst_source, meteo_daily_source):
     rh = ea.divide(esat).multiply(100).rename('RH')
 
     # Resample
-    tmin = tmin.resample('bilinear')
-    tmax = tmax.resample('bilinear')
-    rso_inst = rso_inst.resample('bilinear')
-    tair_c = tair_c.add(273.15).resample('bilinear')
-    wind_med = wind_med.resample('bilinear')
-    rh = rh.resample('bilinear')
-    swdown24h = swdown24h.resample('bilinear')
+    tmin = ee.Image(288)#tmin.resample('bilinear')
+    tmax = ee.Image(303)#tmax.resample('bilinear')
+    rso_inst = ee.Image(250)#rso_inst.resample('bilinear')
+    tair_c = ee.Image(298)#tair_c.add(273.15).resample('bilinear')
+    wind_med = ee.Image(2)#wind_med.resample('bilinear')
+    rh = ee.Image(60)#rh.resample('bilinear')
+    swdown24h = ee.Image(350)#swdown24h.resample('bilinear')
 
     return [tmin, tmax, tair_c, wind_med, rh, rso_inst, swdown24h]
 
