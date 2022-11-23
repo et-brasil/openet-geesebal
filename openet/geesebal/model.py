@@ -210,7 +210,7 @@ def meteorology(time_start, meteo_inst_source, meteo_daily_source):
     swdown24h = meteorology_daily.select('surface_solar_radiation_downwards').first()\
         .divide(24*3600).rename('short_wave_down')
 
-    # Min and Max air temperature [K]
+    # Min and Max air temperature [C]
     tmin = meteorology_daily.select('temperature_2m_min').first().subtract(273.15).rename('tmin')
     tmax = meteorology_daily.select('temperature_2m_max').first().subtract(273.15).rename('tmax')
 
@@ -218,7 +218,7 @@ def meteorology(time_start, meteo_inst_source, meteo_daily_source):
     rso_inst = next_image.select('surface_solar_radiation_downwards_hourly')\
         .subtract(previous_image.select('surface_solar_radiation_downwards_hourly'))\
         .multiply(delta_time).add(previous_image.select('surface_solar_radiation_downwards_hourly'))\
-        .divide(24*3600).rename('rso_inst')
+        .divide(3600).rename('rso_inst')
 
     # Specific humidity [Kg Kg-1]
     # q_med = next_image.select('specific_humidity') \
@@ -274,13 +274,13 @@ def meteorology(time_start, meteo_inst_source, meteo_daily_source):
     rh = ea.divide(esat).multiply(100).rename('RH')
 
     # Resample
-    tmin = tmin.resample('bilinear')
-    tmax = tmax.resample('bilinear')
-    rso_inst = rso_inst.resample('bilinear')
-    tair_c = tair_c.resample('bilinear')
-    wind_med = wind_med.resample('bilinear')
-    rh = rh.resample('bilinear')
-    swdown24h = swdown24h.resample('bilinear')
+    tmin = ee.Image(15)#tmin.resample('bilinear')
+    tmax = ee.Image(30)#tmax.resample('bilinear')
+    rso_inst = ee.Image(800)#rso_inst.resample('bilinear')
+    tair_c = ee.Image(25)#tair_c.resample('bilinear')
+    wind_med = ee.Image(2)#wind_med.resample('bilinear')
+    rh = ee.Image(50)#rh.resample('bilinear')
+    swdown24h = ee.Image(240)#swdown24h.resample('bilinear')
 
     return [tmin, tmax, tair_c, wind_med, rh, rso_inst, swdown24h]
 
