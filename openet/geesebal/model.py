@@ -135,7 +135,7 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
         # Hot pixel
         d_hot_pixel = fexp_hot_pixel(
             time_start, ndvi, ndwi, lst_dem, rad_inst, g_inst, year, month,
-             p_lowest_NDVI, p_hottest_Ts, geometry_image, coords, proj
+             p_lowest_NDVI, p_hottest_Ts, geometry_image, coords, proj,meteo_daily_source
         )
 
         # Instantaneous sensible heat flux (h)
@@ -960,7 +960,7 @@ def radiation_24h(time_start, tmax, tmin, elev, sun_elevation, cos_terrain, rso2
 
 
 def fexp_hot_pixel(time_start, ndvi, ndwi, lst_dem, rn, g, year, month,
-                   ndvi_hot, lst_hot, geometry_image, coords, proj):
+                   ndvi_hot, lst_hot, geometry_image, coords, proj,meteorology_source_daily):
 
     """
     Simplified CIMEC method to select the hot pixel
@@ -1066,11 +1066,11 @@ def fexp_hot_pixel(time_start, ndvi, ndwi, lst_dem, rn, g, year, month,
     n_sum_final_hot_pix = ee.Number(sum_final_hot_pix.get('int'))
 
     # Precipitation product
-    gridmet = ee.ImageCollection('IDAHO_EPSCOR/GRIDMET')\
+    met_dataset = ee.ImageCollection(meteorology_source_daily)\
         .filterDate(ee.Date(time_start).advance(-60, 'days'), ee.Date(time_start))
 
-    etr_60mm = gridmet.select('etr').sum()
-    precipt_60mm = gridmet.select('pr').sum()
+    etr_60mm = met_dataset.select('etr_asce').sum()
+    precipt_60mm = met_dataset.select('total_precipitation').sum()
     ratio = precipt_60mm.divide(etr_60mm)
 
     # Temperature adjustement offset (Allen2013 Eqn 8)
