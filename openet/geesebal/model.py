@@ -274,10 +274,10 @@ def meteorology(time_start, meteo_inst_source, meteo_daily_source):
     rh = ea.divide(esat).multiply(100).rename('RH')
 
     # Resample
-    tmin = ee.Image(15)#tmin.resample('bilinear')
-    tmax = ee.Image(30)#tmax.resample('bilinear')
+    tmin = ee.Image(288)#tmin.resample('bilinear')
+    tmax = ee.Image(303)#tmax.resample('bilinear')
     rso_inst = ee.Image(800)#rso_inst.resample('bilinear')
-    tair_c = ee.Image(25)#tair_c.resample('bilinear')
+    tair_c = ee.Image(298)#tair_c.resample('bilinear')
     wind_med = ee.Image(2)#wind_med.resample('bilinear')
     rh = ee.Image(50)#rh.resample('bilinear')
     swdown24h = ee.Image(240)#swdown24h.resample('bilinear')
