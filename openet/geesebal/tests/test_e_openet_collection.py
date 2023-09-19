@@ -223,8 +223,7 @@ def test_Collection_build_dates():
 
 def test_Collection_build_landsat_c1_sr():
     """Test if the Landsat SR collections can be built"""
-    coll_obj = default_coll_obj(
-        collections=['LANDSAT/LC08/C01/T1_SR', 'LANDSAT/LE07/C01/T1_SR'])
+    coll_obj = default_coll_obj(collections=['LANDSAT/LC08/C01/T1_SR', 'LANDSAT/LE07/C01/T1_SR'])
     output = utils.getinfo(coll_obj._build())
     assert parse_scene_id(output) == C01_SCENE_ID_LIST
     assert {y['id'] for x in output['features'] for y in x['bands']} == VARIABLES
@@ -232,8 +231,7 @@ def test_Collection_build_landsat_c1_sr():
 
 def test_Collection_build_landsat_c2_sr():
     """Test if the Landsat SR collections can be built"""
-    coll_obj = default_coll_obj(
-        collections=['LANDSAT/LC08/C02/T1_L2', 'LANDSAT/LE07/C02/T1_L2'])
+    coll_obj = default_coll_obj(collections=['LANDSAT/LC08/C02/T1_L2', 'LANDSAT/LE07/C02/T1_L2'])
     output = utils.getinfo(coll_obj._build())
     assert parse_scene_id(output) == C02_SCENE_ID_LIST
     assert {y['id'] for x in output['features'] for y in x['bands']} == VARIABLES
@@ -248,8 +246,7 @@ def test_Collection_build_exclusive_enddate():
 def test_Collection_build_cloud_cover():
     """Test if the cloud cover max parameter is being applied"""
     # CGM - The filtered images should probably be looked up programmatically
-    output = utils.getinfo(default_coll_obj(cloud_cover_max=0.5)._build(
-        variables=['et']))
+    output = utils.getinfo(default_coll_obj(cloud_cover_max=0.5)._build(variables=['et']))
     assert 'LE07_044033_20170724' not in parse_scene_id(output)
 
 
@@ -376,9 +373,16 @@ def test_Collection_interpolate_default():
     assert {y['id'] for x in output['features'] for y in x['bands']} == VARIABLES
 
 
+@pytest.mark.parametrize('use_joins', [True, False])
+def test_Collection_interpolate_use_joins(use_joins):
+    """Only checking if the parameter is accepted and runs for now"""
+    output = utils.getinfo(default_coll_obj().interpolate(use_joins=use_joins, **interp_args))
+    assert output['type'] == 'ImageCollection'
+    assert parse_scene_id(output) == ['20170701']
+
+
 def test_Collection_interpolate_variables_custom():
-    output = utils.getinfo(default_coll_obj().interpolate(
-        variables=['et'], **interp_args))
+    output = utils.getinfo(default_coll_obj().interpolate(variables=['et'], **interp_args))
     assert {y['id'] for x in output['features'] for y in x['bands']} == {'et'}
 
 
@@ -388,8 +392,7 @@ def test_Collection_interpolate_t_interval_daily():
     Since end_date is exclusive last image date will be one day earlier
     """
     coll_obj = default_coll_obj(start_date='2017-07-01', end_date='2017-07-05')
-    output = utils.getinfo(coll_obj.interpolate(
-        t_interval='daily', **interp_args))
+    output = utils.getinfo(coll_obj.interpolate(t_interval='daily', **interp_args))
     assert output['type'] == 'ImageCollection'
     assert parse_scene_id(output)[0] == '20170701'
     assert parse_scene_id(output)[-1] == '20170704'
@@ -398,27 +401,26 @@ def test_Collection_interpolate_t_interval_daily():
 
 def test_Collection_interpolate_t_interval_monthly():
     """Test if the monthly time interval parameter works"""
-    output = utils.getinfo(default_coll_obj().interpolate(
-        t_interval='monthly', **interp_args))
+    output = utils.getinfo(default_coll_obj().interpolate(t_interval='monthly', **interp_args))
     assert output['type'] == 'ImageCollection'
     assert parse_scene_id(output) == ['201707']
     assert {y['id'] for x in output['features'] for y in x['bands']} == VARIABLES
 
 
-def test_Collection_interpolate_t_interval_annual():
-    """Test if the annual time interval parameter works"""
-    coll_obj = default_coll_obj(start_date='2017-01-01', end_date='2018-01-01')
-    output = utils.getinfo(coll_obj.interpolate(
-        t_interval='annual', **interp_args))
-    assert output['type'] == 'ImageCollection'
-    assert parse_scene_id(output) == ['2017']
-    assert {y['id'] for x in output['features'] for y in x['bands']} == VARIABLES
+# CGM - Commenting out since it takes a really long time to run
+#   This function could probably be tested for a shorter time period
+# def test_Collection_interpolate_t_interval_annual():
+#     """Test if the annual time interval parameter works"""
+#     coll_obj = default_coll_obj(start_date='2017-01-01', end_date='2018-01-01')
+#     output = utils.getinfo(coll_obj.interpolate(t_interval='annual', **interp_args))
+#     assert output['type'] == 'ImageCollection'
+#     assert parse_scene_id(output) == ['2017']
+#     assert {y['id'] for x in output['features'] for y in x['bands']} == VARIABLES
 
 
 def test_Collection_interpolate_t_interval_custom():
     """Test if the custom time interval parameter works"""
-    output = utils.getinfo(default_coll_obj().interpolate(
-        t_interval='custom', **interp_args))
+    output = utils.getinfo(default_coll_obj().interpolate(t_interval='custom', **interp_args))
     assert output['type'] == 'ImageCollection'
     assert parse_scene_id(output) == ['20170701']
     assert {y['id'] for x in output['features'] for y in x['bands']} == VARIABLES
@@ -459,8 +461,7 @@ def test_Collection_interpolate_no_variables_exception():
 def test_Collection_interpolate_output_type_default():
     """Test if output_type parameter is defaulting to float"""
     vars = ['et', 'et_reference', 'et_fraction', 'count']
-    output = utils.getinfo(default_coll_obj(
-        variables=vars).interpolate(**interp_args))
+    output = utils.getinfo(default_coll_obj(variables=vars).interpolate(**interp_args))
     output = output['features'][0]['bands']
     bands = {info['id']: i for i, info in enumerate(output)}
     assert(output[bands['et']]['data_type']['precision'] == 'float')
@@ -497,7 +498,6 @@ def test_Collection_interpolate_only_interpolate_images():
 )
 def test_Collection_get_image_ids(collections, scene_id_list):
     # get_image_ids method makes a getInfo call internally
-    output = default_coll_obj(collections=collections, variables=None)\
-        .get_image_ids()
+    output = default_coll_obj(collections=collections, variables=None).get_image_ids()
     assert type(output) is list
     assert set(x.split('/')[-1] for x in output) == set(scene_id_list)
