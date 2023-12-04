@@ -13,7 +13,6 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
        ndvi_cold, ndvi_hot, lst_cold, lst_hot,
        time_start, geometry_image, proj, coords
        ):
-
     """
     Daily Evapotranspiration [mm day-1].
 
@@ -78,7 +77,7 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
     minutes = ee.Number(date.get('minutes'))
 
     # Endmembers
-    p_top_NDVI= ee.Number(ndvi_cold)
+    p_top_NDVI = ee.Number(ndvi_cold)
     p_coldest_Ts = ee.Number(lst_cold)
     p_lowest_NDVI = ee.Number(ndvi_hot)
     p_hottest_Ts = ee.Number(lst_hot)
@@ -135,7 +134,7 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
         # Hot pixel
         d_hot_pixel = fexp_hot_pixel(
             time_start, ndvi, ndwi, lst_dem, rad_inst, g_inst, year, month,
-             p_lowest_NDVI, p_hottest_Ts, geometry_image, coords, proj
+            p_lowest_NDVI, p_hottest_Ts, geometry_image, coords, proj
         )
 
         # Instantaneous sensible heat flux (h)
@@ -159,7 +158,6 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
 
 
 def meteorology(time_start, meteo_inst_source, meteo_daily_source):
-
     """
     Parameters
     ----------
@@ -274,7 +272,6 @@ def meteorology(time_start, meteo_inst_source, meteo_daily_source):
 
 
 def tao_sw(dem, tair, rh, sun_elevation, cos_zn):
-
     """
     Correct declivity and aspect effects from Land Surface Temperature.
 
@@ -330,7 +327,6 @@ def tao_sw(dem, tair, rh, sun_elevation, cos_zn):
 
 
 def cos_terrain(time_start, dem, hour, minutes, coords):
-
     """
     Cosine zenith angle elevation (Allen et al. (2006)).
 
@@ -393,8 +389,8 @@ def cos_terrain(time_start, dem, hour, minutes, coords):
 
     return cos_zn
 
-def tair_dem_correction(tmin, tmax, dem):
 
+def tair_dem_correction(tmin, tmax, dem):
     """
     Correct Air temperature for mountain areas
 
@@ -428,7 +424,6 @@ def tair_dem_correction(tmin, tmax, dem):
 
 def lst_correction(time_start, lst, dem, tair, rh, sun_elevation, hour, minutes,
                    coords):
-
     """
     Correct declivity and aspect effects from Land Surface Temperature.
 
@@ -509,7 +504,6 @@ def lst_correction(time_start, lst, dem, tair, rh, sun_elevation, hour, minutes,
 
 
 def lc_mask(month, year, geometry_image, mask_img):
-
     """
     Filtering pre-candidates pixels using a Land cover mask.
 
@@ -576,7 +570,6 @@ def lc_mask(month, year, geometry_image, mask_img):
 
 
 def homogeneous_mask(ndvi, proj):
-
     """
     Homogeneous mask for endmembers selection (Allen et al. (2013)).
 
@@ -611,7 +604,6 @@ def homogeneous_mask(ndvi, proj):
 
 def cold_pixel(ndvi, ndwi, lst_dem, year, month, ndvi_cold, lst_cold,
                geometry_image, coords, proj, dem):
-
     """
     Simplified CIMEC method to select the cold pixel
 
@@ -669,7 +661,6 @@ def cold_pixel(ndvi, ndwi, lst_dem, year, month, ndvi_cold, lst_cold,
     # Crea a 0 mask
     mask = ndvi.select(0).updateMask(1)
     # Land cover mask
-    land_cover_mask = lc_mask(month, year, geometry_image, mask)
 
     # Creates a homogeneous ndvi mask
     stdev_ndvi = homogeneous_mask(ndvi, proj)
@@ -678,7 +669,6 @@ def cold_pixel(ndvi, ndwi, lst_dem, year, month, ndvi_cold, lst_cold,
                                 coords, dem.toFloat()])
 
     d_perc_top_NDVI = images.select('ndvi_neg')\
-        .updateMask(land_cover_mask)\
         .updateMask(stdev_ndvi)\
         .reduceRegion(reducer=ee.Reducer.percentile([ndvi_cold]),
                       geometry=geometry_image, scale=30, maxPixels=1e9)\
@@ -686,11 +676,10 @@ def cold_pixel(ndvi, ndwi, lst_dem, year, month, ndvi_cold, lst_cold,
 
     n_perc_top_NDVI = ee.Number(d_perc_top_NDVI.get('ndvi_neg'))
 
-    i_top_NDVI = images.updateMask(land_cover_mask).updateMask(stdev_ndvi)\
+    i_top_NDVI = images.updateMask(stdev_ndvi)\
         .updateMask(images.select('ndvi_neg').lte(n_perc_top_NDVI))
 
     d_perc_low_LST = i_top_NDVI.select('lst_nw')\
-        .updateMask(land_cover_mask)\
         .updateMask(stdev_ndvi)\
         .reduceRegion(reducer=ee.Reducer.percentile([lst_cold]),
                       geometry=geometry_image, scale=30, maxPixels=1e9)\
@@ -698,7 +687,7 @@ def cold_pixel(ndvi, ndwi, lst_dem, year, month, ndvi_cold, lst_cold,
 
     n_perc_low_LST = ee.Number(d_perc_low_LST.get('lst_nw'))
 
-    i_cold_lst = i_top_NDVI.updateMask(land_cover_mask)\
+    i_cold_lst = i_top_NDVI\
         .updateMask(i_top_NDVI.select('lst_nw').lte(n_perc_low_LST))
 
     # Filtes
@@ -739,7 +728,6 @@ def cold_pixel(ndvi, ndwi, lst_dem, year, month, ndvi_cold, lst_cold,
 
 def radiation_inst(dem, lst, emissivity, albedo, tair, rh, swdown_inst,
                    sun_elevation, cos_terrain, ts_cold_elev):
-
     """
     Instantaneous Net Radiation [W m-2]
 
@@ -808,7 +796,6 @@ def radiation_inst(dem, lst, emissivity, albedo, tair, rh, swdown_inst,
 
 
 def soil_heat_flux(rn, ndvi, albedo, lst_dem, ndwi):
-
     """
     Instantaneous Soil Heat Flux [W m-2]
 
@@ -846,7 +833,6 @@ def soil_heat_flux(rn, ndvi, albedo, lst_dem, ndwi):
 
 
 def radiation_24h(time_start, tmax, tmin, elev, sun_elevation, cos_terrain, rso24h):
-
     """
     Daily Net radiation [W m-2] - FAO56
 
@@ -949,7 +935,6 @@ def radiation_24h(time_start, tmax, tmin, elev, sun_elevation, cos_terrain, rso2
 
 def fexp_hot_pixel(time_start, ndvi, ndwi, lst_dem, rn, g, year, month,
                    ndvi_hot, lst_hot, geometry_image, coords, proj):
-
     """
     Simplified CIMEC method to select the hot pixel
 
@@ -1014,7 +999,6 @@ def fexp_hot_pixel(time_start, ndvi, ndwi, lst_dem, rn, g, year, month,
     mask = ndvi.select(0).updateMask(1)
 
     # Land cover mask
-    land_cover_mask = lc_mask(month, year, geometry_image, mask)
 
     # Create a homogeneous ndvi mask
     stdev_ndvi = homogeneous_mask(ndvi, proj)
@@ -1023,18 +1007,16 @@ def fexp_hot_pixel(time_start, ndvi, ndwi, lst_dem, rn, g, year, month,
         ndvi, ndvi_neg, rn, g, pos_ndvi, lst_neg, lst_nw, coords])
 
     d_perc_down_ndvi = images.select('post_ndvi')\
-        .updateMask(land_cover_mask)\
         .updateMask(stdev_ndvi)\
         .reduceRegion(reducer=ee.Reducer.percentile([ndvi_hot]),
                       geometry=geometry_image, scale=30, maxPixels=1e9)\
         .combine(ee.Dictionary({'post_ndvi': 100}), overwrite=False)
     n_perc_low_NDVI = ee.Number(d_perc_down_ndvi.get('post_ndvi'))
 
-    i_low_NDVI = images.updateMask(land_cover_mask)\
+    i_low_NDVI = images\
         .updateMask(images.select('post_ndvi').lte(n_perc_low_NDVI))
 
     d_perc_top_lst = i_low_NDVI.select('lst_neg')\
-        .updateMask(land_cover_mask)\
         .updateMask(stdev_ndvi)\
         .reduceRegion(reducer=ee.Reducer.percentile([lst_hot]),
                       geometry=geometry_image, scale=30, maxPixels=1e9)\
@@ -1042,7 +1024,7 @@ def fexp_hot_pixel(time_start, ndvi, ndwi, lst_dem, rn, g, year, month,
 
     n_perc_top_lst = ee.Number(d_perc_top_lst.get('lst_neg'))
 
-    i_top_LST = i_low_NDVI.updateMask(land_cover_mask).updateMask(stdev_ndvi)\
+    i_top_LST = i_low_NDVI.updateMask(stdev_ndvi)\
         .updateMask(i_low_NDVI.select('lst_neg').lte(n_perc_top_lst))
 
     c_lst_hot_int = i_top_LST.select('lst_nw').min(1).max(1).int().rename('int')
@@ -1102,7 +1084,6 @@ def fexp_hot_pixel(time_start, ndvi, ndwi, lst_dem, rn, g, year, month,
 
 def sensible_heat_flux(savi, ux, ts_cold_number, d_hot_pixel,
                        lst_dem, lst, dem, geometry_image):
-
     """
     Instantaneous Sensible Heat Flux [W m-2]
 
@@ -1352,8 +1333,8 @@ def sensible_heat_flux(savi, ux, ts_cold_number, d_hot_pixel,
              'i_zom': i_zom, 'i_psim_200': i_psim_200},
         )
 
-        #Limiting minimum ufric values
-        i_ufric = i_ufric.where(i_ufric.lt(0.02),0.02)
+        # Limiting minimum ufric values
+        i_ufric = i_ufric.where(i_ufric.lt(0.02), 0.02)
 
         # Corrected value for the aerodinamic resistance to the heat transport
         i_rah_unstable = i_rah.expression(
@@ -1362,7 +1343,7 @@ def sensible_heat_flux(savi, ux, ts_cold_number, d_hot_pixel,
              'psi_h2': i_psih_2, 'psi_h01': i_psih_01},
         ).rename('rah')
 
-        i_rah = i_rah.where(i_L_int.lt(0),i_rah_unstable)
+        i_rah = i_rah.where(i_L_int.lt(0), i_rah_unstable)
 
         if n == 1:
             n_dT_hot_old = n_dT_hot
@@ -1399,7 +1380,7 @@ def sensible_heat_flux(savi, ux, ts_cold_number, d_hot_pixel,
          'i_rah': i_rah_final},
     )
 
-    #LL - Need more analysis.
+    # LL - Need more analysis.
     '''
     # Evapotranspiration (advection)
     et_ad = i_dT_int.expression(
@@ -1415,7 +1396,6 @@ def sensible_heat_flux(savi, ux, ts_cold_number, d_hot_pixel,
 
 
 def daily_et(h_inst, g_inst, rn_inst, lst_dem, rad_24h):
-
     """
     Daily Evapotranspiration [mm day-1]
 
@@ -1480,7 +1460,6 @@ def daily_et(h_inst, g_inst, rn_inst, lst_dem, rad_24h):
 
 def et_fraction(time_start, et, et_reference_source, et_reference_band,
                 et_reference_factor):
-
     """ET Fraction
 
     Parameters

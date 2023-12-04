@@ -2,6 +2,8 @@ import pprint
 
 import ee
 
+import openet.core.common
+
 from openet.geesebal import openet_landsat as landsat
 from openet.geesebal import model
 from openet.geesebal import utils
@@ -34,8 +36,7 @@ class Image():
             lst_cold=20,
             lst_hot=20,
             **kwargs,
-            ):
-
+    ):
         """Construct a generic GEESEBAL Image
 
         Parameters
@@ -157,7 +158,7 @@ class Image():
         self.geometry = self.image.select(0).geometry()
         self.proj = self.image.select(0).projection()
         self.latlon = ee.Image.pixelLonLat().reproject(self.proj)
-        self.coords = self.latlon.select(['longitude', 'latitude' ])
+        self.coords = self.latlon.select(['longitude', 'latitude'])
 
         # Image projection and geotransform
         self.crs = image.projection().crs()
@@ -300,7 +301,7 @@ class Image():
             'system:index': sr_image.get('system:index'),
             'system:time_start': sr_image.get('system:time_start'),
             'system:id': sr_image.get('system:id'),
-            'SUN_ELEVATION':sun_elevation,
+            'SUN_ELEVATION': sun_elevation,
         })
 
         # Instantiate the class
@@ -331,53 +332,55 @@ class Image():
 
         # Rename bands to generic names
         input_bands = ee.Dictionary({
-            'LANDSAT_4': ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4',
-                          'SR_B5', 'SR_B7', 'ST_B6', 'QA_PIXEL'],
-            'LANDSAT_5': ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4',
-                          'SR_B5', 'SR_B7', 'ST_B6', 'QA_PIXEL'],
-            'LANDSAT_7': ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4',
-                          'SR_B5', 'SR_B7', 'ST_B6', 'QA_PIXEL'],
-            'LANDSAT_8': ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5',
-                          'SR_B6', 'SR_B7', 'ST_B10', 'QA_PIXEL'],
-            'LANDSAT_9': ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5',
-                          'SR_B6', 'SR_B7', 'ST_B10', 'QA_PIXEL'],
+            'LANDSAT_4': ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7',
+                          'ST_B6', 'QA_PIXEL', 'QA_RADSAT'],
+            'LANDSAT_5': ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7',
+                          'ST_B6', 'QA_PIXEL', 'QA_RADSAT'],
+            'LANDSAT_7': ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7',
+                          'ST_B6', 'QA_PIXEL', 'QA_RADSAT'],
+            'LANDSAT_8': ['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7',
+                          'ST_B10', 'QA_PIXEL', 'QA_RADSAT'],
+            'LANDSAT_9': ['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7',
+                          'ST_B10', 'QA_PIXEL', 'QA_RADSAT'],
         })
-        output_bands = ee.Dictionary({
-            'LANDSAT_4': ['blue', 'green', 'red', 'nir',
-                          'swir1', 'swir2', 'lst', 'QA_PIXEL'],
-            'LANDSAT_5': ['blue', 'green', 'red', 'nir',
-                          'swir1', 'swir2', 'lst', 'QA_PIXEL'],
-            'LANDSAT_7': ['blue', 'green', 'red', 'nir',
-                          'swir1', 'swir2', 'lst', 'QA_PIXEL'],
-            'LANDSAT_8': ['ultra_blue', 'blue', 'green', 'red', 'nir',
-                          'swir1', 'swir2', 'lst', 'QA_PIXEL'],
-            'LANDSAT_9': ['ultra_blue', 'blue', 'green', 'red', 'nir',
-                          'swir1', 'swir2', 'lst', 'QA_PIXEL'],
-        })
-        scalars = ee.Dictionary({
-            'LANDSAT_4': [0.0000275, 0.0000275, 0.0000275, 0.0000275,
-                          0.0000275, 0.0000275, 0.00341802, 1],
-            'LANDSAT_5': [0.0000275, 0.0000275, 0.0000275, 0.0000275,
-                          0.0000275, 0.0000275, 0.00341802, 1],
-            'LANDSAT_7': [0.0000275, 0.0000275, 0.0000275, 0.0000275,
-                          0.0000275, 0.0000275, 0.00341802, 1],
-            'LANDSAT_8': [0.0000275, 0.0000275, 0.0000275, 0.0000275, 0.0000275,
-                          0.0000275, 0.0000275, 0.00341802, 1],
-            'LANDSAT_9': [0.0000275, 0.0000275, 0.0000275, 0.0000275, 0.0000275,
-                          0.0000275, 0.0000275, 0.00341802, 1],
-        })
-        offsets = ee.Dictionary({
-            'LANDSAT_4': [-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 0],
-            'LANDSAT_5': [-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 0],
-            'LANDSAT_7': [-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 0],
-            'LANDSAT_8': [-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 0],
-            'LANDSAT_9': [-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 0],
-        })
+        output_bands = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2',
+                        'tir', 'QA_PIXEL', 'QA_RADSAT']
 
-        prep_image = sr_image \
-            .select(input_bands.get(spacecraft_id), output_bands.get(spacecraft_id)) \
-            .multiply(ee.Image.constant(ee.List(scalars.get(spacecraft_id)))) \
-            .add(ee.Image.constant(ee.List(offsets.get(spacecraft_id))))
+        prep_image = (
+            sr_image
+            .select(input_bands.get(spacecraft_id), output_bands)
+            .multiply([0.0000275, 0.0000275, 0.0000275, 0.0000275,
+                       0.0000275, 0.0000275, 0.00341802, 1, 1])
+            .add([-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 0, 0])
+        )
+
+        # Default the cloudmask flags to True if they were not
+        # Eventually these will probably all default to True in openet.core
+        if 'cirrus_flag' not in cloudmask_args.keys():
+            cloudmask_args['cirrus_flag'] = True
+        if 'dilate_flag' not in cloudmask_args.keys():
+            cloudmask_args['dilate_flag'] = True
+        if 'shadow_flag' not in cloudmask_args.keys():
+            cloudmask_args['shadow_flag'] = True
+        if 'snow_flag' not in cloudmask_args.keys():
+            cloudmask_args['snow_flag'] = True
+        # if 'saturated_flag' not in cloudmask_args.keys():
+        #     cloudmask_args['saturated_flag'] = True
+
+        cloud_mask = openet.core.common.landsat_c2_sr_cloud_mask(sr_image, **cloudmask_args)
+
+        # Check if passing c2_lst_correct arguments
+        if "c2_lst_correct" in kwargs.keys():
+            assert isinstance(kwargs['c2_lst_correct'], bool), "selection type must be a boolean"
+            # Remove from kwargs since it is not a valid argument for Image init
+            c2_lst_correct = kwargs.pop('c2_lst_correct')
+        else:
+            c2_lst_correct = cls._C2_LST_CORRECT
+
+        if c2_lst_correct:
+            lst = openet.core.common.landsat_c2_sr_lst_correct(sr_image, landsat.ndvi(prep_image))
+        else:
+            lst = prep_image.select(['tir'])
 
         # CGM - Need to come up with a more robust approach,
         #   but this seems to work for now
@@ -391,27 +394,6 @@ class Image():
             landsat.cloud_mask_C2_l89(sr_image),
             landsat.cloud_mask_C2_l457(sr_image),
         )
-        # albedo = ee.Algorithms.If(
-        #     spacecraft_id.compareTo(ee.String('LANDSAT_8')),
-        #     landsat.albedo_l457(prep_image),
-        #     landsat.albedo_l89(prep_image))
-        # cloud_mask = ee.Algorithms.If(
-        #     spacecraft_id.compareTo(ee.String('LANDSAT_8')),
-        #     landsat.cloud_mask_C2_l457(sr_image),
-        #     landsat.cloud_mask_C2_l89(sr_image))
-
-        # # Default the cloudmask flags to True if they were not
-        # # Eventually these will probably all default to True in openet.core
-        # if 'cirrus_flag' not in cloudmask_args.keys():
-        #     cloudmask_args['cirrus_flag'] = True
-        # if 'dilate_flag' not in cloudmask_args.keys():
-        #     cloudmask_args['dilate_flag'] = True
-        # if 'shadow_flag' not in cloudmask_args.keys():
-        #     cloudmask_args['shadow_flag'] = True
-        # if 'snow_flag' not in cloudmask_args.keys():
-        #     cloudmask_args['snow_flag'] = True
-        # cloud_mask = openet.core.common.landsat_c2_sr_cloud_mask(
-        #     sr_image, **cloudmask_args)
 
         # Build the input image
         # Don't compute LST since it is being provided
@@ -431,7 +413,7 @@ class Image():
                   'system:time_start': sr_image.get('system:time_start'),
                   'system:id': sr_image.get('system:id'),
                   'SUN_ELEVATION': sr_image.get('SUN_ELEVATION'),
-            })
+                  })
 
         # Instantiate the class
         return cls(input_image, **kwargs)
@@ -507,25 +489,25 @@ class Image():
     def et(self,):
 
         et = model.et(image=self.image,
-                        ndvi=self.ndvi,
-                        ndwi=self.ndwi,
-                        lst=self.lst,
-                        albedo=self.albedo,
-                        emissivity=self.emissivity,
-                        savi=self.savi,
-                        # lai=self.lai,
-                        meteo_inst_source=self._meteorology_source_inst,
-                        meteo_daily_source=self._meteorology_source_daily,
-                        elev_product=self._elev_source,
-                        ndvi_cold=self._ndvi_cold,
-                        ndvi_hot=self._ndvi_hot,
-                        lst_cold=self._lst_cold,
-                        lst_hot=self._lst_hot,
-                        time_start=self._time_start,
-                        geometry_image=self.geometry,
-                        proj=self.proj,
-                        coords=self.coords,
-                        )
+                      ndvi=self.ndvi,
+                      ndwi=self.ndwi,
+                      lst=self.lst,
+                      albedo=self.albedo,
+                      emissivity=self.emissivity,
+                      savi=self.savi,
+                      # lai=self.lai,
+                      meteo_inst_source=self._meteorology_source_inst,
+                      meteo_daily_source=self._meteorology_source_daily,
+                      elev_product=self._elev_source,
+                      ndvi_cold=self._ndvi_cold,
+                      ndvi_hot=self._ndvi_hot,
+                      lst_cold=self._lst_cold,
+                      lst_hot=self._lst_hot,
+                      time_start=self._time_start,
+                      geometry_image=self.geometry,
+                      proj=self.proj,
+                      coords=self.coords,
+                      )
 
         return et.set(self._properties)
 
@@ -589,7 +571,7 @@ class Image():
 
         mask = self.et.multiply(0).add(1).updateMask(1).uint8().rename(['mask'])
 
-        return  mask.set(self._properties)
+        return mask.set(self._properties)
 
     # CGM - The image class must have a "time" method for the interpolation
     # I'm not sure if it needs to be built from the active pixels mask
