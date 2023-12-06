@@ -109,7 +109,7 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
 
         # Cold pixel for wet conditions repretation of the image
         d_cold_pixel = cold_pixel(
-            ndvi, ndwi, lst_dem, year, month, p_top_NDVI, p_coldest_Ts,
+            albedo, ndvi, ndwi, lst_dem, year, month, p_top_NDVI, p_coldest_Ts,
             geometry_image, coords, proj, elev
         )
 
@@ -133,7 +133,7 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
 
         # Hot pixel
         d_hot_pixel = fexp_hot_pixel(
-            time_start, ndvi, ndwi, lst_dem, rad_inst, g_inst, year, month,
+            time_start, albedo, ndvi, ndwi, lst_dem, rad_inst, g_inst, year, month,
             p_lowest_NDVI, p_hottest_Ts, geometry_image, coords, proj
         )
 
@@ -602,7 +602,7 @@ def homogeneous_mask(ndvi, proj):
     return ee.Image(sd_mask)
 
 
-def cold_pixel(ndvi, ndwi, lst_dem, year, month, ndvi_cold, lst_cold,
+def cold_pixel(albedo, ndvi, ndwi, lst_dem, year, month, ndvi_cold, lst_cold,
                geometry_image, coords, proj, dem):
     """
     Simplified CIMEC method to select the cold pixel
@@ -933,7 +933,7 @@ def radiation_24h(time_start, tmax, tmin, elev, sun_elevation, cos_terrain, rso2
     return rn.rename('rad_24h')
 
 
-def fexp_hot_pixel(time_start, ndvi, ndwi, lst_dem, rn, g, year, month,
+def fexp_hot_pixel(time_start, albedo, ndvi, ndwi, lst_dem, rn, g, year, month,
                    ndvi_hot, lst_hot, geometry_image, coords, proj):
     """
     Simplified CIMEC method to select the hot pixel
