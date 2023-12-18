@@ -90,7 +90,8 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
     # Elevation data
     dem_product = ee.Image(elev_product)
     elev = dem_product.select('elevation')
-
+    slope_aspect = ee.Terrain.products(elev)
+    
     # Sun elevation
     sun_elevation = ee.Number(image.get('SUN_ELEVATION'))
 
@@ -134,7 +135,7 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
         # Hot pixel
         d_hot_pixel = fexp_hot_pixel(
             time_start, albedo, ndvi, ndwi, lst_dem, rad_inst, g_inst, year, month,
-            p_lowest_NDVI, p_hottest_Ts, geometry_image, coords, proj
+            p_lowest_NDVI, p_hottest_Ts, geometry_image, coords, proj, elev
         )
 
         # Instantaneous sensible heat flux (h)
@@ -652,13 +653,22 @@ def cold_pixel(albedo, ndvi, ndwi, lst_dem, year, month, ndvi_cold, lst_cold,
 
     """
     # Pre-filter
-    pos_ndvi = ndvi.updateMask(ndvi.gt(0)).rename('post_ndvi')
+    # BCCA: changed pos_ndvi from gt(0) to gte(0.7) and added albedo filter
+    pos_ndvi = ndvi.updateMask(ndvi.gte(0.7)).rename('post_ndvi')
+    
+    pos_ndvi = pos_ndvi.updateMask(albedo.lte(0.23))
+    
+    # BCCA: added texture threshold to avoid mountaineous areas
+    texture = dem.glcmTexture({'size': 3}).select('elevation_contrast').focalMax(3,'circle')
+
+    pos_ndvi = pos_ndvi.updateMask(texture.lte(10))
+    
     ndvi_neg = pos_ndvi.multiply(-1).rename('ndvi_neg')
 
     lst_neg = lst_dem.multiply(-1).rename('lst_neg').rename('lst_neg')
     lst_nw = lst_dem.updateMask(ndwi.lte(0)).rename('lst_nw')
 
-    # Crea a 0 mask
+    # Create a 0 mask
     mask = ndvi.select(0).updateMask(1)
     # Land cover mask
 
@@ -690,7 +700,7 @@ def cold_pixel(albedo, ndvi, ndwi, lst_dem, year, month, ndvi_cold, lst_cold,
     i_cold_lst = i_top_NDVI\
         .updateMask(i_top_NDVI.select('lst_nw').lte(n_perc_low_LST))
 
-    # Filtes
+    # Filters
     c_lst_cold20 = i_cold_lst.updateMask(images.select('lst_nw').gte(200))
     c_lst_cold20_int = c_lst_cold20.select('lst_nw').min(1).max(1).int().rename('int')
     c_lst_cold20 = c_lst_cold20.addBands(c_lst_cold20_int)
@@ -934,7 +944,7 @@ def radiation_24h(time_start, tmax, tmin, elev, sun_elevation, cos_terrain, rso2
 
 
 def fexp_hot_pixel(time_start, albedo, ndvi, ndwi, lst_dem, rn, g, year, month,
-                   ndvi_hot, lst_hot, geometry_image, coords, proj):
+                   ndvi_hot, lst_hot, geometry_image, coords, proj, dem):
     """
     Simplified CIMEC method to select the hot pixel
 
@@ -989,7 +999,16 @@ def fexp_hot_pixel(time_start, albedo, ndvi, ndwi, lst_dem, rn, g, year, month,
     """
 
     # Pre-filter
-    pos_ndvi = ndvi.updateMask(ndvi.gt(0)).rename('post_ndvi')
+    # BCCA: restricted ndvi values and added albedo filter
+    pos_ndvi = ndvi.updateMask(ndvi.gt(0)).updateMask(ndvi.lte(0.3)).rename('post_ndvi')
+    
+    pos_ndvi = pos_ndvi.updateMask(albedo.gte(0.15)).updateMask(albedo.lte(0.35))
+    
+    # BCCA: added texture threshold to avoid mountaineous areas
+    texture = dem.glcmTexture({'size': 3}).select('elevation_contrast').focalMax(3,'circle')
+
+    pos_ndvi = pos_ndvi.updateMask(texture.lte(10))
+    
     ndvi_neg = pos_ndvi.multiply(-1).rename('ndvi_neg')
 
     lst_neg = lst_dem.multiply(-1).rename('lst_neg')
@@ -997,9 +1016,7 @@ def fexp_hot_pixel(time_start, albedo, ndvi, ndwi, lst_dem, rn, g, year, month,
 
     # Create a 0 mask
     mask = ndvi.select(0).updateMask(1)
-
-    # Land cover mask
-
+    
     # Create a homogeneous ndvi mask
     stdev_ndvi = homogeneous_mask(ndvi, proj)
 
