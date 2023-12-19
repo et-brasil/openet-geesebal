@@ -27,6 +27,8 @@ def lazy_property(fn):
 class Image():
     """Google Earth Engine SEBAL - GEESEBAL for Landsat image"""
 
+    _C2_LST_CORRECT = False  # Enable (True) C2 LST correction to recalculate LST
+
     def __init__(
             self, image,
             meteorology_source_inst='NASA/NLDAS/FORA0125_H002',
@@ -210,7 +212,7 @@ class Image():
 
     @classmethod
     def from_landsat_c1_sr(cls, sr_image, cloudmask_args={}, **kwargs):
-        """Returns a SSEBop Image instance from a Landsat Collection 1 SR image
+        """Returns a GEESEBAL Image instance from a Landsat Collection 1 SR image
 
         Parameters
         ----------
@@ -276,14 +278,14 @@ class Image():
             .set({'system:index': sr_image.get('system:index'),
                   'system:time_start': sr_image.get('system:time_start'),
                   'system:id': sr_image.get('system:id'),
-            })
+                  })
 
         # Instantiate the class
         return cls(input_image, reflectance_type='SR', **kwargs)
 
     @classmethod
     def from_landsat_c2_sr(cls, sr_image, cloudmask_args={}, **kwargs):
-        """Returns a SSEBop Image instance from a Landsat Collection 2 SR image
+        """Returns a GEESEBAL Image instance from a Landsat Collection 2 SR image
 
         Parameters
         ----------
@@ -372,7 +374,7 @@ class Image():
             .set({'system:index': sr_image.get('system:index'),
                   'system:time_start': sr_image.get('system:time_start'),
                   'system:id': sr_image.get('system:id'),
-            })
+                  })
         )
 
         # Instantiate the class
