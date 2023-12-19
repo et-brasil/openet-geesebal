@@ -27,7 +27,7 @@ def lazy_property(fn):
 class Image():
     """Google Earth Engine SEBAL - GEESEBAL for Landsat image"""
 
-    # _C2_LST_CORRECT = False  # Enable (True) C2 LST correction to recalculate LST
+    _C2_LST_CORRECT = False  # Enable (True) C2 LST correction to recalculate LST
 
     def __init__(
             self, image,
@@ -90,8 +90,6 @@ class Image():
         -----
         Standard percentiles are from Allen et al. (2013)
         """
-
-        self._C2_LST_CORRECT = False  # Enable (True) C2 LST correction to recalculate LST
 
         self.image = image
 
