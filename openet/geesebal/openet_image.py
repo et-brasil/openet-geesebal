@@ -27,7 +27,7 @@ def lazy_property(fn):
 class Image():
     """Google Earth Engine SEBAL - GEESEBAL for Landsat image"""
 
-    _C2_LST_CORRECT = False  # Enable (True) C2 LST correction to recalculate LST
+    _C2_LST_CORRECT = True  # Enable (True) C2 LST correction to recalculate LST
 
     def __init__(
             self, image,
@@ -427,13 +427,14 @@ class Image():
 
         if c2_lst_correct:
             lst = openet.core.common.landsat_c2_sr_lst_correct(sr_image, landsat.ndvi(prep_image))
+
         else:
             lst = prep_image.select(['lst'])
 
         # Build the input image
         # Don't compute LST since it is being provided
         input_image = ee.Image([
-            lst,
+            lst.rename(['lst']),
             landsat.ndvi(prep_image),
             landsat.lai(prep_image),
             landsat.savi(prep_image),
