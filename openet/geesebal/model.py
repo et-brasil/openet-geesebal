@@ -656,7 +656,7 @@ def cold_pixel(albedo, ndvi, ndwi, lst_dem, year, month, ndvi_cold, lst_cold,
     pos_ndvi = pos_ndvi.updateMask(albedo.lte(0.23))
 
     # BCCA: added texture threshold to avoid mountaineous areas
-    texture = dem.glcmTexture({'size': 3}).select('elevation_contrast').focalMax(3, 'circle')
+    texture = dem.glcmTexture(3).select('elevation_contrast').focalMax(3, 'circle')
 
     pos_ndvi = pos_ndvi.updateMask(texture.lte(10))
 
@@ -992,7 +992,7 @@ def fexp_hot_pixel(time_start, albedo, ndvi, ndwi, lst_dem, rn, g, year, month,
     pos_ndvi = pos_ndvi.updateMask(albedo.gte(0.15)).updateMask(albedo.lte(0.35))
 
     # BCCA: added texture threshold to avoid mountaineous areas
-    texture = dem.glcmTexture({'size': 3}).select('elevation_contrast').focalMax(3, 'circle')
+    texture = dem.glcmTexture(3).select('elevation_contrast').focalMax(3, 'circle')
 
     pos_ndvi = pos_ndvi.updateMask(texture.lte(10))
 
@@ -1074,7 +1074,6 @@ def fexp_hot_pixel(time_start, albedo, ndvi, ndwi, lst_dem, rn, g, year, month,
     # }).combine(ee.Dictionary({'temp': 0, 'tfac': 0, 'x': 0, 'y': 0,
     #                           'rn': 0, 'g': 0, 'ndvi': 0, 'sum': 0}),
     #            overwrite=False)
-
     return fc_hot_pix
 
 
@@ -1179,7 +1178,7 @@ def sensible_heat_flux(savi, ux, fc_cold_pixels, fc_hot_pixels,
     i_ufric = lst.expression(
         '(n_K * u200) / log(height / i_zom)',
         {'u200': i_u200, 'height': n_height, 'i_zom': n_zom, 'n_K': n_K},
-    )
+    ).rename('u_fr')
 
     # Heights [m] above the zero plane displacement.
     z1 = ee.Number(0.01)
@@ -1191,17 +1190,19 @@ def sensible_heat_flux(savi, ux, fc_cold_pixels, fc_hot_pixels,
         {'z2': z2, 'z1': z1, 'i_ufric': i_ufric},
     ).rename(['rah'])
 
-    def iterate_cold(f_cold):
+    def map_cold(f_cold):
 
-        n_Ts_cold = ee.Number(f_cold.get('temp'))
+        f_cold = ee.Feature(f_cold)
+        n_Ts_cold = ee.Number(f_cold.get('lst_nw'))
 
-        def iterate_hot(f_hot):
+        def map_hot(f_hot):
 
-            n_Ts_hot = ee.Number(f_hot.get('temp')).subtract(ee.Number(f_hot.get('tfac')))
-            n_G_hot = ee.Number(f_hot.get('g'))
-            n_Rn_hot = ee.Number(f_hot.get('rn'))
-            n_long_hot = ee.Number(f_hot.get('x'))
-            n_lat_hot = ee.Number(f_hot.get('y'))
+            f_hot = ee.Feature(f_hot)
+            n_Ts_hot = ee.Number(f_hot.get('lst_nw')).subtract(ee.Number(f_hot.get('Tfac')))
+            n_G_hot = ee.Number(f_hot.get('g_inst'))
+            n_Rn_hot = ee.Number(f_hot.get('rn_inst'))
+            n_long_hot = ee.Number(f_hot.get('longitude'))
+            n_lat_hot = ee.Number(f_hot.get('latitude'))
             p_hot_pix = ee.Geometry.Point([n_long_hot, n_lat_hot])
 
             n_ro_hot = n_Ts_hot.multiply(-0.0046).add(2.5538)
@@ -1358,13 +1359,27 @@ def sensible_heat_flux(savi, ux, fc_cold_pixels, fc_hot_pixels,
                  'i_dT_int': i_dT,
                  'i_rah': img_h_inputs_last_img.select('rah')}).rename('H')
 
+            # print(i_H_final.getInfo())
             return i_H_final
 
-        return fc_hot_pixels.map(iterate_hot)
+        # lst1 = []
+        # for f_hot in fc_hot_pixels.toList(1000).getInfo():
+        #     lst1.append(map_hot(f_hot))
+        # return lst1
+        return fc_hot_pixels.toList(10).map(map_hot)
 
-    ic_H_final = ee.ImageCollection(fc_cold_pixels.map(iterate_cold).flatten())
+    i_H_final = ee.ImageCollection(
+        fc_cold_pixels
+        .toList(10)
+        .map(map_cold)
+        .flatten()
+    ).mean()
 
-    i_H_final = ic_H_final.mean()
+    # lst2 = []
+    # for f_cold in fc_cold_pixels.toList(1000).getInfo():
+    #     lst2.append(map_cold(f_cold))
+
+    # i_H_final = ee.ImageCollection(ee.List(lst2).flatten()).mean()
 
     # LL - Needs more analysis.
     '''

@@ -226,62 +226,89 @@ class Image():
         Returns
         -------
         Image
-
         """
-        warnings.warn(
-            'from_landsat_c1_sr method is deprecated and will be removed in a future version',
-            FutureWarning
-            # DeprecationWarning, stacklevel=2
-        )
 
         sr_image = ee.Image(sr_image)
 
         # Use the SATELLITE property identify each Landsat type
+        # This should be equivalent tot he SPACECRAFT_ID property in collection 2
         spacecraft_id = ee.String(sr_image.get('SATELLITE'))
 
         # Rename bands to generic names
-        # Rename thermal band "k" coefficients to generic names
         input_bands = ee.Dictionary({
             'LANDSAT_4': ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'B6', 'pixel_qa'],
             'LANDSAT_5': ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'B6', 'pixel_qa'],
             'LANDSAT_7': ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'B6', 'pixel_qa'],
-            'LANDSAT_8': ['B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B10', 'pixel_qa'],
+            'LANDSAT_8': ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B10',
+                          'pixel_qa'],
         })
-        output_bands = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'tir', 'pixel_qa']
-        # Hardcode values for now since they are not properties in the images
-        k1 = ee.Dictionary({
-            'LANDSAT_4': 607.76, 'LANDSAT_5': 607.76, 'LANDSAT_7': 666.09, 'LANDSAT_8': 774.8853
+        output_bands = ee.Dictionary({
+            'LANDSAT_4': ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'tir',
+                          'pixel_qa'],
+            'LANDSAT_5': ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'tir',
+                          'pixel_qa'],
+            'LANDSAT_7': ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'tir',
+                          'pixel_qa'],
+            'LANDSAT_8': ['ultra_blue', 'blue', 'green', 'red', 'nir',
+                          'swir1', 'swir2', 'tir', 'pixel_qa'],
         })
-        k2 = ee.Dictionary({
-            'LANDSAT_4': 1260.56, 'LANDSAT_5': 1260.56, 'LANDSAT_7': 1282.71, 'LANDSAT_8': 1321.0789
+        scalars = ee.Dictionary({
+            'LANDSAT_4': [0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.1, 1.0],
+            'LANDSAT_5': [0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.1, 1.0],
+            'LANDSAT_7': [0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.1, 1.0],
+            'LANDSAT_8': [0.0001, 0.0001, 0.0001, 0.0001, 0.0001,
+                          0.0001, 0.0001, 0.1, 1.0],
         })
         prep_image = sr_image\
-            .select(input_bands.get(spacecraft_id), output_bands)\
-            .multiply([0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.1, 1])\
-            .set({'k1_constant': ee.Number(k1.get(spacecraft_id)),
-                  'k2_constant': ee.Number(k2.get(spacecraft_id))})
+            .select(input_bands.get(spacecraft_id), output_bands.get(spacecraft_id))\
+            .multiply(ee.Image.constant(ee.List(scalars.get(spacecraft_id))))\
+            .set({'SPACECRAFT_ID': spacecraft_id})
 
-        cloud_mask = openet.core.common.landsat_c1_sr_cloud_mask(sr_image, **cloudmask_args)
+        # TODO: Restructure these to avoid the "If" calls if possible
+        albedo = ee.Algorithms.If(
+            spacecraft_id.compareTo(ee.String('LANDSAT_8')),
+            landsat.albedo_l457(prep_image),
+            landsat.albedo_l89(prep_image))
+
+        cloud_mask = ee.Algorithms.If(
+            spacecraft_id.compareTo(ee.String('LANDSAT_8')),
+            landsat.cloud_mask_sr_l457(sr_image),
+            landsat.cloud_mask_sr_l8(sr_image))
+
+        # # Default the cloudmask flags to True if they were not
+        # # Eventually these will probably all default to True in openet.core
+        # if 'shadow_flag' not in cloudmask_args.keys():
+        #     cloudmask_args['shadow_flag'] = True
+        # if 'snow_flag' not in cloudmask_args.keys():
+        #     cloudmask_args['snow_flag'] = True
+        # cloud_mask = openet.core.common.landsat_c1_sr_cloud_mask(
+        #     sr_image, **cloudmask_args)
 
         # Build the input image
         input_image = ee.Image([
-            landsat.lst(prep_image),
             landsat.ndvi(prep_image),
+            landsat.lai(prep_image),
+            landsat.savi(prep_image),
+            landsat.lst(prep_image),
+            landsat.emissivity(prep_image),
             landsat.ndwi(prep_image),
-            # CGM - use a blank image for the water mask for now
-            landsat.ndvi(prep_image).multiply(0).rename(['qa_water']),
+            albedo,
         ])
 
+        # Calculate sun elevation from zenith
+        sun_elevation = ee.Number(90)\
+            .subtract(ee.Number(sr_image.get('SOLAR_ZENITH_ANGLE')))
+
         # Apply the cloud mask and add properties
-        input_image = input_image\
-            .updateMask(cloud_mask)\
-            .set({'system:index': sr_image.get('system:index'),
-                  'system:time_start': sr_image.get('system:time_start'),
-                  'system:id': sr_image.get('system:id'),
-                  })
+        input_image = input_image.updateMask(cloud_mask).set({
+            'system:index': sr_image.get('system:index'),
+            'system:time_start': sr_image.get('system:time_start'),
+            'system:id': sr_image.get('system:id'),
+            'SUN_ELEVATION': sun_elevation,
+        })
 
         # Instantiate the class
-        return cls(input_image, reflectance_type='SR', **kwargs)
+        return cls(input_image, **kwargs)
 
     @classmethod
     def from_landsat_c2_sr(cls, sr_image, cloudmask_args={}, **kwargs):
@@ -299,8 +326,8 @@ class Image():
         Returns
         -------
         Image
-
         """
+
         sr_image = ee.Image(sr_image)
 
         # Use the SPACECRAFT_ID property identify each Landsat type
@@ -308,42 +335,87 @@ class Image():
 
         # Rename bands to generic names
         input_bands = ee.Dictionary({
-            'LANDSAT_4': ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7',
-                          'ST_B6', 'QA_PIXEL', 'QA_RADSAT'],
-            'LANDSAT_5': ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7',
-                          'ST_B6', 'QA_PIXEL', 'QA_RADSAT'],
-            'LANDSAT_7': ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7',
-                          'ST_B6', 'QA_PIXEL', 'QA_RADSAT'],
-            'LANDSAT_8': ['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7',
-                          'ST_B10', 'QA_PIXEL', 'QA_RADSAT'],
-            'LANDSAT_9': ['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7',
-                          'ST_B10', 'QA_PIXEL', 'QA_RADSAT'],
+            'LANDSAT_4': ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4',
+                          'SR_B5', 'SR_B7', 'ST_B6', 'QA_PIXEL'],
+            'LANDSAT_5': ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4',
+                          'SR_B5', 'SR_B7', 'ST_B6', 'QA_PIXEL'],
+            'LANDSAT_7': ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4',
+                          'SR_B5', 'SR_B7', 'ST_B6', 'QA_PIXEL'],
+            'LANDSAT_8': ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5',
+                          'SR_B6', 'SR_B7', 'ST_B10', 'QA_PIXEL'],
+            'LANDSAT_9': ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5',
+                          'SR_B6', 'SR_B7', 'ST_B10', 'QA_PIXEL'],
         })
-        output_bands = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2',
-                        'tir', 'QA_PIXEL', 'QA_RADSAT']
+        output_bands = ee.Dictionary({
+            'LANDSAT_4': ['blue', 'green', 'red', 'nir',
+                          'swir1', 'swir2', 'lst', 'QA_PIXEL'],
+            'LANDSAT_5': ['blue', 'green', 'red', 'nir',
+                          'swir1', 'swir2', 'lst', 'QA_PIXEL'],
+            'LANDSAT_7': ['blue', 'green', 'red', 'nir',
+                          'swir1', 'swir2', 'lst', 'QA_PIXEL'],
+            'LANDSAT_8': ['ultra_blue', 'blue', 'green', 'red', 'nir',
+                          'swir1', 'swir2', 'lst', 'QA_PIXEL'],
+            'LANDSAT_9': ['ultra_blue', 'blue', 'green', 'red', 'nir',
+                          'swir1', 'swir2', 'lst', 'QA_PIXEL'],
+        })
+        scalars = ee.Dictionary({
+            'LANDSAT_4': [0.0000275, 0.0000275, 0.0000275, 0.0000275,
+                          0.0000275, 0.0000275, 0.00341802, 1],
+            'LANDSAT_5': [0.0000275, 0.0000275, 0.0000275, 0.0000275,
+                          0.0000275, 0.0000275, 0.00341802, 1],
+            'LANDSAT_7': [0.0000275, 0.0000275, 0.0000275, 0.0000275,
+                          0.0000275, 0.0000275, 0.00341802, 1],
+            'LANDSAT_8': [0.0000275, 0.0000275, 0.0000275, 0.0000275, 0.0000275,
+                          0.0000275, 0.0000275, 0.00341802, 1],
+            'LANDSAT_9': [0.0000275, 0.0000275, 0.0000275, 0.0000275, 0.0000275,
+                          0.0000275, 0.0000275, 0.00341802, 1],
+        })
+        offsets = ee.Dictionary({
+            'LANDSAT_4': [-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 0],
+            'LANDSAT_5': [-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 0],
+            'LANDSAT_7': [-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 0],
+            'LANDSAT_8': [-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 0],
+            'LANDSAT_9': [-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 0],
+        })
 
-        prep_image = (
-            sr_image
-            .select(input_bands.get(spacecraft_id), output_bands)
-            .multiply([0.0000275, 0.0000275, 0.0000275, 0.0000275,
-                       0.0000275, 0.0000275, 0.00341802, 1, 1])
-            .add([-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 0, 0])
+        prep_image = sr_image \
+            .select(input_bands.get(spacecraft_id), output_bands.get(spacecraft_id)) \
+            .multiply(ee.Image.constant(ee.List(scalars.get(spacecraft_id)))) \
+            .add(ee.Image.constant(ee.List(offsets.get(spacecraft_id))))
+
+        # CGM - Need to come up with a more robust approach,
+        #   but this seems to work for now
+        albedo = ee.Algorithms.If(
+            ee.List(['LANDSAT_8', 'LANDSAT_9']).contains(spacecraft_id),
+            landsat.albedo_l89(prep_image),
+            landsat.albedo_l457(prep_image),
         )
+        cloud_mask = ee.Algorithms.If(
+            ee.List(['LANDSAT_8', 'LANDSAT_9']).contains(spacecraft_id),
+            landsat.cloud_mask_C2_l89(sr_image),
+            landsat.cloud_mask_C2_l457(sr_image),
+        )
+        # albedo = ee.Algorithms.If(
+        #     spacecraft_id.compareTo(ee.String('LANDSAT_8')),
+        #     landsat.albedo_l457(prep_image),
+        #     landsat.albedo_l89(prep_image))
+        # cloud_mask = ee.Algorithms.If(
+        #     spacecraft_id.compareTo(ee.String('LANDSAT_8')),
+        #     landsat.cloud_mask_C2_l457(sr_image),
+        #     landsat.cloud_mask_C2_l89(sr_image))
 
-        # Default the cloudmask flags to True if they were not
-        # Eventually these will probably all default to True in openet.core
-        if 'cirrus_flag' not in cloudmask_args.keys():
-            cloudmask_args['cirrus_flag'] = True
-        if 'dilate_flag' not in cloudmask_args.keys():
-            cloudmask_args['dilate_flag'] = True
-        if 'shadow_flag' not in cloudmask_args.keys():
-            cloudmask_args['shadow_flag'] = True
-        if 'snow_flag' not in cloudmask_args.keys():
-            cloudmask_args['snow_flag'] = True
-        # if 'saturated_flag' not in cloudmask_args.keys():
-        #     cloudmask_args['saturated_flag'] = True
-
-        cloud_mask = openet.core.common.landsat_c2_sr_cloud_mask(sr_image, **cloudmask_args)
+        # # Default the cloudmask flags to True if they were not
+        # # Eventually these will probably all default to True in openet.core
+        # if 'cirrus_flag' not in cloudmask_args.keys():
+        #     cloudmask_args['cirrus_flag'] = True
+        # if 'dilate_flag' not in cloudmask_args.keys():
+        #     cloudmask_args['dilate_flag'] = True
+        # if 'shadow_flag' not in cloudmask_args.keys():
+        #     cloudmask_args['shadow_flag'] = True
+        # if 'snow_flag' not in cloudmask_args.keys():
+        #     cloudmask_args['snow_flag'] = True
+        # cloud_mask = openet.core.common.landsat_c2_sr_cloud_mask(
+        #     sr_image, **cloudmask_args)
 
         # Check if passing c2_lst_correct arguments
         if "c2_lst_correct" in kwargs.keys():
@@ -356,29 +428,30 @@ class Image():
         if c2_lst_correct:
             lst = openet.core.common.landsat_c2_sr_lst_correct(sr_image, landsat.ndvi(prep_image))
         else:
-            lst = prep_image.select(['tir'])
+            lst = prep_image.select(['lst'])
 
         # Build the input image
         # Don't compute LST since it is being provided
         input_image = ee.Image([
-            lst.rename(['lst']),
+            lst,
             landsat.ndvi(prep_image),
+            landsat.lai(prep_image),
+            landsat.savi(prep_image),
+            landsat.emissivity(prep_image),
             landsat.ndwi(prep_image),
-            landsat.landsat_c2_qa_water_mask(prep_image),
+            albedo,
         ])
 
         # Apply the cloud mask and add properties
-        input_image = (
-            input_image
-            .updateMask(cloud_mask)
+        input_image = input_image.updateMask(cloud_mask)\
             .set({'system:index': sr_image.get('system:index'),
                   'system:time_start': sr_image.get('system:time_start'),
                   'system:id': sr_image.get('system:id'),
+                  'SUN_ELEVATION': sr_image.get('SUN_ELEVATION'),
                   })
-        )
 
         # Instantiate the class
-        return cls(input_image, reflectance_type='SR', **kwargs)
+        return cls(input_image, **kwargs)
 
     def calculate(self, variables=['ndvi', 'lst', 'et', 'et_fraction']):
         """Return a multiband image of calculated variables
