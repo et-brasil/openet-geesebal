@@ -663,7 +663,8 @@ def cold_pixel(albedo, ndvi, ndwi, lst_dem, year, month, ndvi_cold, lst_cold,
     ndvi_neg = pos_ndvi.multiply(-1).rename('ndvi_neg')
 
     lst_neg = lst_dem.multiply(-1).rename('lst_neg').rename('lst_neg')
-    lst_nw = lst_dem.updateMask(ndwi.lte(0)).rename('lst_nw')
+    # lst_nw = lst_dem.updateMask(ndwi.lte(0)).rename('lst_nw')
+    lst_nw = lst_dem.rename('lst_nw')
 
     # Creates a homogeneous ndvi mask
     stdev_ndvi = homogeneous_mask(ndvi, proj)
@@ -693,22 +694,46 @@ def cold_pixel(albedo, ndvi, ndwi, lst_dem, year, month, ndvi_cold, lst_cold,
     i_cold_lst = i_top_NDVI\
         .updateMask(i_top_NDVI.select('lst_nw').lte(n_perc_low_LST))
 
+    # BCCA: included water surface as potential cold endmembers
+    water_mask = ndvi.updateMask(ndvi.lt(0))\
+        .updateMask(albedo.lte(0.15))\
+        .updateMask(ndwi.gt(0))\
+        .mask()
+
+    buffer = water_mask.focal_min(radius=60, units='meters')
+
+    water_mask = water_mask.updateMask(buffer)
+
+    masks = i_cold_lst.select('lst_nw').blend(water_mask).mask().selfMask()
+
+    i_cold_lst = images.updateMask(masks)
+
     # Filters
-    c_lst_cold20 = i_cold_lst.updateMask(images.select('lst_nw').gte(200))
-    c_lst_cold20_int = c_lst_cold20.select('lst_nw').min(1).max(1).int().rename('int')
-    c_lst_cold20 = c_lst_cold20.addBands(c_lst_cold20_int)
+    c_lst_cold20 = i_cold_lst.updateMask(i_cold_lst.select('lst_nw').gte(200))
+    c_lst_cold20_int = masks.int().rename('int')
+    # c_lst_cold20_int = c_lst_cold20.select('lst_nw').min(1).max(1).int().rename('int')
+    c_lst_cold20 = c_lst_cold20.addBands(c_lst_cold20_int).select(
+        'ndvi', 'lst_nw', 'longitude', 'latitude', 'elevation', 'int'
+    )
 
     sum_final_cold_pix = c_lst_cold20.select('int')\
         .reduceRegion(reducer=ee.Reducer.sum(), geometry=geometry_image,
                       scale=30, maxPixels=1e9)
     n_sum_final_cold_pix = ee.Number(sum_final_cold_pix.get('int'))
+    # print(n_sum_final_cold_pix.getInfo())
 
     def function_def_pixel(f):
         return f.setGeometry(ee.Geometry.Point([f.get('longitude'), f.get('latitude')]))
 
     # Get Cold Pixel (random)
-    fc_cold_pix = c_lst_cold20.stratifiedSample(10, 'int', geometry_image, 30)\
-        .map(function_def_pixel)
+    fc_cold_pix = c_lst_cold20.stratifiedSample(
+        numPoints=10,
+        classBand='int',
+        region=geometry_image,
+        scale=30,
+        dropNulls=True
+    ).map(function_def_pixel)
+
     # n_Ts_cold = ee.Number(fc_cold_pix.aggregate_first('lst_nw'))
     # n_long_cold = ee.Number(fc_cold_pix.aggregate_first('longitude'))
     # n_lat_cold = ee.Number(fc_cold_pix.aggregate_first('latitude'))
@@ -1044,7 +1069,9 @@ def fexp_hot_pixel(time_start, albedo, ndvi, ndwi, lst_dem, rn, g, year, month,
 
     Tfac = ee.Image(Tfac.where(ratio.gt(0.2), 0)).rename('Tfac')
 
-    c_lst_hotpix = c_lst_hotpix.addBands(Tfac)
+    c_lst_hotpix = c_lst_hotpix.addBands(Tfac).select(
+        ['ndvi', 'rn_inst', 'g_inst', 'lst_nw', 'longitude', 'latitude', 'int', 'Tfac']
+    )
 
     def function_def_pixel(f):
         return f.setGeometry(ee.Geometry.Point([f.get('longitude'), f.get('latitude')]))
@@ -1366,11 +1393,14 @@ def sensible_heat_flux(savi, ux, fc_cold_pixels, fc_hot_pixels,
         # for f_hot in fc_hot_pixels.toList(1000).getInfo():
         #     lst1.append(map_hot(f_hot))
         # return lst1
-        return fc_hot_pixels.toList(10).map(map_hot)
+        return fc_hot_pixels.toList(5).map(map_hot)
+
+    # print('cold pixels', fc_cold_pixels.getInfo())
+    # print('hot pixels', fc_hot_pixels.getInfo())
 
     i_H_final = ee.ImageCollection(
         fc_cold_pixels
-        .toList(10)
+        .toList(5)
         .map(map_cold)
         .flatten()
     ).mean()
