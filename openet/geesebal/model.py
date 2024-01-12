@@ -500,6 +500,8 @@ def lst_correction(time_start, lst, dem, tair, rh, sun_elevation, hour, minutes,
 
     return lst_dem.rename('lst_dem')
 
+# BCCA: not used anymore
+
 
 def lc_mask(month, year, geometry_image, mask_img):
     """
@@ -725,14 +727,30 @@ def cold_pixel(albedo, ndvi, ndwi, lst_dem, year, month, ndvi_cold, lst_cold,
     def function_def_pixel(f):
         return f.setGeometry(ee.Geometry.Point([f.get('longitude'), f.get('latitude')]))
 
-    # Get Cold Pixel (random)
-    fc_cold_pix = c_lst_cold20.stratifiedSample(
-        numPoints=10,
-        classBand='int',
-        region=geometry_image,
-        scale=30,
-        dropNulls=True
-    ).map(function_def_pixel)
+    # Get Cold Pixels (random)
+    fc_cold_pix = ee.FeatureCollection(ee.Algorithms.If(
+        n_sum_final_cold_pix.gte(3000),
+        c_lst_cold20.stratifiedSample(
+            numPoints=10,
+            classBand='int',
+            region=geometry_image,
+            scale=30,
+            dropNulls=True,
+            geometries=True
+        ),  # .map(function_def_pixel),
+        ee.FeatureCollection(
+            [
+                # ee.Feature(ee.Geometry.Point([0, 0]),
+                #         {'ndvi': 0,
+                #         'lst_nw': 0,
+                #          'longitude': 0,
+                #          'latitude': 0,
+                #          'elevation': 0,
+                #          'int': 1})
+            ]
+        )
+    ))
+    # fc_cold_pix = fc_cold_pix.merge(fc_nullFeature)
 
     # n_Ts_cold = ee.Number(fc_cold_pix.aggregate_first('lst_nw'))
     # n_long_cold = ee.Number(fc_cold_pix.aggregate_first('longitude'))
@@ -1073,12 +1091,42 @@ def fexp_hot_pixel(time_start, albedo, ndvi, ndwi, lst_dem, rn, g, year, month,
         ['ndvi', 'rn_inst', 'g_inst', 'lst_nw', 'longitude', 'latitude', 'int', 'Tfac']
     )
 
+    sum_final_hot_pix = c_lst_hotpix.select('int')\
+        .reduceRegion(reducer=ee.Reducer.sum(), geometry=geometry_image,
+                      scale=30, maxPixels=1e9)
+    n_sum_final_hot_pix = ee.Number(sum_final_hot_pix.get('int'))
+    # print(n_sum_final_hot_pix.getInfo())
+
     def function_def_pixel(f):
         return f.setGeometry(ee.Geometry.Point([f.get('longitude'), f.get('latitude')]))
 
-    # Get Hot Pixel (random)
-    fc_hot_pix = c_lst_hotpix.stratifiedSample(10, 'int', geometry_image, 30)\
-        .map(function_def_pixel)
+    # Get Hot Pixels (random)
+
+    fc_hot_pix = ee.FeatureCollection(ee.Algorithms.If(
+        n_sum_final_hot_pix.gt(3000),
+        c_lst_hotpix.stratifiedSample(
+            numPoints=10,
+            classBand='int',
+            region=geometry_image,
+            scale=30,
+            dropNulls=True,
+            geometries=True
+        ),  # .map(function_def_pixel),
+        ee.FeatureCollection(
+            [
+                # ee.Feature(ee.Geometry.Point([0, 0]),
+                #         {'ndvi': 0,
+                #          'rn_inst': 0,
+                #          'g_inst': 0,
+                #          'lst_nw': 0,
+                #          'longitude': 0,
+                #          'latitude': 0,
+                #          'Tfac': 1})
+            ]
+        )
+    ))
+
+    # fc_hot_pix = fc_hot_pix.merge(fc_nullFeature)
 
     # n_Ts_hot = ee.Number(fc_hot_pix.aggregate_first('lst_nw'))
     # n_long_hot = ee.Number(fc_hot_pix.aggregate_first('longitude'))
@@ -1399,11 +1447,16 @@ def sensible_heat_flux(savi, ux, fc_cold_pixels, fc_hot_pixels,
     # print('hot pixels', fc_hot_pixels.getInfo())
 
     i_H_final = ee.ImageCollection(
-        fc_cold_pixels
-        .toList(10)
-        .map(map_cold)
-        .flatten()
-    ).mean()
+        ee.Algorithms.If(
+            fc_cold_pixels.size().eq(0).Or(fc_hot_pixels.size().eq(0)),
+
+            ee.ImageCollection([ee.Image().rename('H')]),
+
+            fc_cold_pixels
+            .toList(10)
+            .map(map_cold)
+            .flatten()
+        )).mean()
 
     # lst2 = []
     # for f_cold in fc_cold_pixels.toList(1000).getInfo():
