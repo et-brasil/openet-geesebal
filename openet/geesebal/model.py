@@ -1446,17 +1446,19 @@ def sensible_heat_flux(savi, ux, fc_cold_pixels, fc_hot_pixels,
     # print('cold pixels', fc_cold_pixels.getInfo())
     # print('hot pixels', fc_hot_pixels.getInfo())
 
-    i_H_final = ee.ImageCollection(
+    i_H_final = ee.Image(
         ee.Algorithms.If(
             fc_cold_pixels.size().eq(0).Or(fc_hot_pixels.size().eq(0)),
 
-            ee.ImageCollection([ee.Image().rename('H')]),
+            ee.Image().rename('H'),
 
-            fc_cold_pixels
-            .toList(10)
-            .map(map_cold)
-            .flatten()
-        )).mean()
+            ee.ImageCollection(
+                fc_cold_pixels
+                .toList(10)
+                .map(map_cold)
+                .flatten()
+            ).mean()
+        ))
 
     # lst2 = []
     # for f_cold in fc_cold_pixels.toList(1000).getInfo():
