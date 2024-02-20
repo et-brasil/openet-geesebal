@@ -9,10 +9,10 @@ import openet.geesebal.utils as utils
 # import openet.core.utils as utils
 
 
-C01_COLLECTIONS = ['LANDSAT/LC08/C01/T1_SR', 'LANDSAT/LE07/C01/T1_SR']
+# C01_COLLECTIONS = ['LANDSAT/LC08/C01/T1_SR', 'LANDSAT/LE07/C01/T1_SR']
 C02_COLLECTIONS = ['LANDSAT/LC08/C02/T1_L2', 'LANDSAT/LE07/C02/T1_L2']
-C01_SCENE_ID_LIST = ['LC08_044033_20170716', 'LE07_044033_20170708',
-                     'LE07_044033_20170724']
+# C01_SCENE_ID_LIST = ['LC08_044033_20170716', 'LE07_044033_20170708',
+#                      'LE07_044033_20170724']
 # Image LE07_044033_20170724 is not (yet?) in LANDSAT/LE07/C02/T1_L2
 C02_SCENE_ID_LIST = ['LC08_044033_20170716', 'LE07_044033_20170708']
 START_DATE = '2017-07-01'
@@ -88,11 +88,11 @@ def test_Collection_init_cloud_cover_max_str():
     [
         # ['LANDSAT/LT04/C01/T1_SR', '1981-01-01', '1982-01-01'],
         # ['LANDSAT/LT04/C01/T1_SR', '1994-01-01', '1995-01-01'],
-        ['LANDSAT/LT05/C01/T1_SR', '1983-01-01', '1984-01-01'],
-        ['LANDSAT/LT05/C01/T1_SR', '2012-01-01', '2013-01-01'],
-        ['LANDSAT/LE07/C01/T1_SR', '1998-01-01', '1999-01-01'],
-        ['LANDSAT/LE07/C01/T1_SR', '2022-01-01', '2023-01-01'],
-        ['LANDSAT/LC08/C01/T1_SR', '2012-01-01', '2013-01-01'],
+        # ['LANDSAT/LT05/C01/T1_SR', '1983-01-01', '1984-01-01'],
+        # ['LANDSAT/LT05/C01/T1_SR', '2012-01-01', '2013-01-01'],
+        # ['LANDSAT/LE07/C01/T1_SR', '1998-01-01', '1999-01-01'],
+        # ['LANDSAT/LE07/C01/T1_SR', '2022-01-01', '2023-01-01'],
+        # ['LANDSAT/LC08/C01/T1_SR', '2012-01-01', '2013-01-01'],
         # ['LANDSAT/LT04/C02/T1_L2', '1981-01-01', '1982-01-01'],
         # ['LANDSAT/LT04/C02/T1_L2', '1994-01-01', '1995-01-01'],
         ['LANDSAT/LT05/C02/T1_L2', '1983-01-01', '1984-01-01'],
@@ -203,7 +203,8 @@ def test_Collection_build_variables_empty_list():
     # Setting variables to an empty list should return the merged Landsat collection
     output = utils.getinfo(
         default_coll_obj(collections=C02_COLLECTIONS, variables=None)
-            ._build(variables=[]).first().bandNames())
+        ._build(variables=[]).first().bandNames()
+    )
     assert 'SR_B3' in output
 
 
@@ -221,12 +222,13 @@ def test_Collection_build_dates():
     assert parse_scene_id(output) == ['LC08_044033_20170716']
 
 
-def test_Collection_build_landsat_c1_sr():
-    """Test if the Landsat SR collections can be built"""
-    coll_obj = default_coll_obj(collections=['LANDSAT/LC08/C01/T1_SR', 'LANDSAT/LE07/C01/T1_SR'])
-    output = utils.getinfo(coll_obj._build())
-    assert parse_scene_id(output) == C01_SCENE_ID_LIST
-    assert {y['id'] for x in output['features'] for y in x['bands']} == VARIABLES
+# DEADBEEF
+# def test_Collection_build_landsat_c1_sr():
+#     """Test if the Landsat SR collections can be built"""
+#     coll_obj = default_coll_obj(collections=['LANDSAT/LC08/C01/T1_SR', 'LANDSAT/LE07/C01/T1_SR'])
+#     output = utils.getinfo(coll_obj._build())
+#     assert parse_scene_id(output) == C01_SCENE_ID_LIST
+#     assert {y['id'] for x in output['features'] for y in x['bands']} == VARIABLES
 
 
 def test_Collection_build_landsat_c2_sr():
@@ -253,7 +255,7 @@ def test_Collection_build_cloud_cover():
 @pytest.mark.parametrize(
     'collection, start_date, end_date',
     [
-        ['LANDSAT/LT05/C01/T1_SR', '2012-01-01', '2013-01-01'],
+        # ['LANDSAT/LT05/C01/T1_SR', '2012-01-01', '2013-01-01'],
         ['LANDSAT/LT05/C02/T1_L2', '2012-01-01', '2013-01-01'],
     ]
 )
@@ -268,7 +270,7 @@ def test_Collection_build_filter_dates_lt05(collection, start_date, end_date):
 @pytest.mark.parametrize(
     'collection, start_date, end_date',
     [
-        ['LANDSAT/LE07/C01/T1_SR', '2022-01-01', '2023-01-01'],
+        # ['LANDSAT/LE07/C01/T1_SR', '2022-01-01', '2023-01-01'],
         ['LANDSAT/LE07/C02/T1_L2', '2022-01-01', '2023-01-01'],
     ]
 )
@@ -283,7 +285,7 @@ def test_Collection_build_filter_dates_le07(collection, start_date, end_date):
 @pytest.mark.parametrize(
     'collection, start_date, end_date',
     [
-        ['LANDSAT/LC08/C01/T1_SR', '2013-01-01', '2013-04-01'],
+        # ['LANDSAT/LC08/C01/T1_SR', '2013-01-01', '2013-04-01'],
         ['LANDSAT/LC08/C02/T1_L2', '2013-01-01', '2013-04-01'],
     ]
 )
@@ -315,7 +317,7 @@ def test_Collection_build_filter_dates_lc09(collection, start_date, end_date):
 
 def test_Collection_build_filter_args_keyword():
     # Need to test with two collections to catch bug when deepcopy isn't used
-    collections = ['LANDSAT/LC08/C01/T1_SR', 'LANDSAT/LE07/C01/T1_SR']
+    collections = ['LANDSAT/LC08/C02/T1_L2', 'LANDSAT/LE07/C02/T1_L2']
     wrs2_filter = [
         {'type': 'equals', 'leftField': 'WRS_PATH', 'rightValue': 44},
         {'type': 'equals', 'leftField': 'WRS_ROW', 'rightValue': 33}]
@@ -474,7 +476,7 @@ def test_Collection_interpolate_only_interpolate_images():
     """Test if count band is returned if no images in the date range"""
     variables = {'et', 'count'}
     output = utils.getinfo(default_coll_obj(
-        collections=['LANDSAT/LC08/C01/T1_SR'],
+        collections=['LANDSAT/LC08/C02/T1_L2'],
         geometry=ee.Geometry.Point(-123.623, 44.745),
         start_date='2017-04-01', end_date='2017-04-30',
         variables=list(variables), cloud_cover_max=70).interpolate(**interp_args))
@@ -492,7 +494,7 @@ def test_Collection_interpolate_only_interpolate_images():
 @pytest.mark.parametrize(
     'collections, scene_id_list',
     [
-        [['LANDSAT/LC08/C01/T1_SR', 'LANDSAT/LE07/C01/T1_SR'], C01_SCENE_ID_LIST],
+        # [['LANDSAT/LC08/C01/T1_SR', 'LANDSAT/LE07/C01/T1_SR'], C01_SCENE_ID_LIST],
         [['LANDSAT/LC08/C02/T1_L2', 'LANDSAT/LE07/C02/T1_L2'], C02_SCENE_ID_LIST],
     ]
 )

@@ -27,6 +27,11 @@ def landsat_image(ultra_blue=0.2, blue=0.2, green=0.2, red=0.2, nir=0.7,
     #     .set({'SPACECRAFT_ID': 'LANDSAT_8'})
 
 
+def test_ndvi_band_name():
+    output = landsat.ndvi(landsat_image()).getInfo()['bands'][0]['id']
+    assert output == 'ndvi'
+
+
 @pytest.mark.parametrize(
     'red, nir, expected',
     [
@@ -51,14 +56,13 @@ def landsat_image(ultra_blue=0.2, blue=0.2, green=0.2, red=0.2, nir=0.7,
     ]
 )
 def test_ndvi_values(red, nir, expected, tol=0.000001):
-    output = utils.constant_image_value(landsat.ndvi(
-        landsat_image(red=red, nir=nir)))
-    assert abs(output - expected) <= tol
+    output = utils.constant_image_value(landsat.ndvi(landsat_image(red=red, nir=nir)))
+    assert abs(output['ndvi'] - expected) <= tol
 
 
-def test_ndvi_band_name():
-    output = landsat.ndvi(landsat_image()).getInfo()['bands'][0]['id']
-    assert output == 'ndvi'
+def test_fipar_band_name():
+    output = landsat.fipar(landsat_image()).getInfo()['bands'][0]['id']
+    assert output == 'fipar'
 
 
 @pytest.mark.parametrize(
@@ -82,14 +86,12 @@ def test_ndvi_band_name():
     ]
 )
 def test_fipar_values(red, nir, expected, tol=0.000001):
-    output = utils.constant_image_value(landsat.fipar(
-        landsat_image(red=red, nir=nir)))
-    assert abs(output - expected) <= tol
+    output = utils.constant_image_value(landsat.fipar(landsat_image(red=red, nir=nir)))
+    assert abs(output['fipar'] - expected) <= tol
 
 
-def test_fipar_band_name():
-    output = landsat.fipar(landsat_image()).getInfo()['bands'][0]['id']
-    assert output == 'fipar'
+def test_lai_band_name():
+    assert landsat.lai(landsat_image()).getInfo()['bands'][0]['id'] == 'lai'
 
 
 @pytest.mark.parametrize(
@@ -109,14 +111,12 @@ def test_fipar_band_name():
     ]
 )
 def test_lai_values(red, nir, expected, tol=0.0001):
-    output = utils.constant_image_value(landsat.lai(
-        landsat_image(red=red, nir=nir)))
-    assert abs(output - expected) <= tol
+    output = utils.constant_image_value(landsat.lai(landsat_image(red=red, nir=nir)))
+    assert abs(output['lai'] - expected) <= tol
 
 
-def test_lai_band_name():
-    output = landsat.lai(landsat_image()).getInfo()['bands'][0]['id']
-    assert output == 'lai'
+def test_ndwi_band_name():
+    assert landsat.ndwi(landsat_image()).getInfo()['bands'][0]['id'] == 'ndwi'
 
 
 @pytest.mark.parametrize(
@@ -129,14 +129,12 @@ def test_lai_band_name():
     ]
 )
 def test_ndwi_values(green, nir, expected, tol=0.000001):
-    output = utils.constant_image_value(landsat.ndwi(
-        landsat_image(green=green, nir=nir)))
-    assert abs(output - expected) <= tol
+    output = utils.constant_image_value(landsat.ndwi(landsat_image(green=green, nir=nir)))
+    assert abs(output['ndwi'] - expected) <= tol
 
 
-def test_ndwi_band_name():
-    output = landsat.ndwi(landsat_image()).getInfo()['bands'][0]['id']
-    assert output == 'ndwi'
+def test_emissivity_band_name():
+    assert landsat.emissivity(landsat_image()).getInfo()['bands'][0]['id'] == 'emissivity'
 
 
 @pytest.mark.parametrize(
@@ -154,14 +152,12 @@ def test_ndwi_band_name():
     ]
 )
 def test_emissivity_values(red, nir, expected, tol=0.000001):
-    output = utils.constant_image_value(landsat.emissivity(
-        landsat_image(red=red, nir=nir)))
-    assert abs(output - expected) <= tol
+    output = utils.constant_image_value(landsat.emissivity(landsat_image(red=red, nir=nir)))
+    assert abs(output['emissivity'] - expected) <= tol
 
 
-def test_emissivity_band_name():
-    output = landsat.emissivity(landsat_image()).getInfo()['bands'][0]['id']
-    assert output == 'emissivity'
+def test_lst_band_name():
+    assert landsat.lst(landsat_image()).getInfo()['bands'][0]['id'] == 'lst'
 
 
 @pytest.mark.parametrize(
@@ -174,14 +170,12 @@ def test_emissivity_band_name():
     ]
 )
 def test_lst_values(tir, red, nir, expected, tol=0.01):
-    output = utils.constant_image_value(landsat.lst(
-        landsat_image(tir=tir, red=red, nir=nir)))
-    assert abs(output - expected) <= tol
+    output = utils.constant_image_value(landsat.lst(landsat_image(tir=tir, red=red, nir=nir)))
+    assert abs(output['lst'] - expected) <= tol
 
 
-def test_lst_band_name():
-    output = landsat.lst(landsat_image()).getInfo()['bands'][0]['id']
-    assert output == 'lst'
+def test_savi_band_name():
+    assert landsat.savi(landsat_image()).getInfo()['bands'][0]['id'] == 'savi'
 
 
 @pytest.mark.parametrize(
@@ -192,14 +186,12 @@ def test_lst_band_name():
     ]
 )
 def test_savi_values(red, nir, expected, tol=0.000001):
-    output = utils.constant_image_value(landsat.savi(
-        landsat_image(red=red, nir=nir)))
-    assert abs(output - expected) <= tol
+    output = utils.constant_image_value(landsat.savi(landsat_image(red=red, nir=nir)))
+    assert abs(output['savi'] - expected) <= tol
 
 
-def test_savi_band_name():
-    output = landsat.savi(landsat_image()).getInfo()['bands'][0]['id']
-    assert output == 'savi'
+def test_albedo_l457_band_name():
+    assert landsat.albedo_l457(landsat_image()).getInfo()['bands'][0]['id'] == 'albedo'
 
 
 @pytest.mark.parametrize(
@@ -212,15 +204,16 @@ def test_savi_band_name():
 )
 def test_albedo_l7_values(nir, expected, tol=0.0001):
     """The default image is all 0.2 except NIR"""
-    l7_img = landsat_image(nir=nir)\
+    l7_img = (
+        landsat_image(nir=nir)
         .select(['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'tir'])
+    )
     output = utils.constant_image_value(landsat.albedo_l457(l7_img))
-    assert abs(output - expected) <= tol
+    assert abs(output['albedo'] - expected) <= tol
 
 
-def test_albedo_l457_band_name():
-    output = landsat.albedo_l457(landsat_image()).getInfo()['bands'][0]['id']
-    assert output == 'albedo'
+def test_albedo_l89_band_name():
+    assert landsat.albedo_l89(landsat_image()).getInfo()['bands'][0]['id'] == 'albedo'
 
 
 @pytest.mark.parametrize(
@@ -235,12 +228,7 @@ def test_albedo_l457_band_name():
 def test_albedo_l89_values(nir, expected, tol=0.0001):
     """The default image is all 0.2 except NIR"""
     output = utils.constant_image_value(landsat.albedo_l89(landsat_image(nir=nir)))
-    assert abs(output - expected) <= tol
-
-
-def test_albedo_l89_band_name():
-    output = landsat.albedo_l89(landsat_image()).getInfo()['bands'][0]['id']
-    assert output == 'albedo'
+    assert abs(output['albedo'] - expected) <= tol
 
 
 @pytest.mark.parametrize(
@@ -263,7 +251,7 @@ def test_albedo_l89_band_name():
 def test_cloud_mask_sr_l457(img_value, expected):
     input_img = ee.Image.constant(int(img_value, 2)).rename(['pixel_qa'])
     output_img = landsat.cloud_mask_sr_l457(input_img)
-    assert utils.constant_image_value(output_img) == expected
+    assert utils.constant_image_value(output_img)['pixel_qa'] == expected
 
 
 @pytest.mark.parametrize(
@@ -287,7 +275,7 @@ def test_cloud_mask_sr_l457(img_value, expected):
 def test_cloud_mask_sr_l8(img_value, expected):
     input_img = ee.Image.constant(int(img_value, 2)).rename(['pixel_qa'])
     output_img = landsat.cloud_mask_sr_l8(input_img)
-    assert utils.constant_image_value(output_img) == expected
+    assert utils.constant_image_value(output_img)['pixel_qa'] == expected
 
 
 @pytest.mark.parametrize(
@@ -309,7 +297,7 @@ def test_cloud_mask_sr_l8(img_value, expected):
 def test_cloud_mask_C2_l457(img_value, expected):
     input_img = ee.Image.constant(int(img_value, 2)).rename(['QA_PIXEL'])
     output_img = landsat.cloud_mask_C2_l457(input_img)
-    assert utils.constant_image_value(output_img) == expected
+    assert utils.constant_image_value(output_img)['QA_PIXEL'] == expected
 
 
 @pytest.mark.parametrize(
@@ -333,4 +321,4 @@ def test_cloud_mask_C2_l457(img_value, expected):
 def test_cloud_mask_C2_l89(img_value, expected):
     input_img = ee.Image.constant(int(img_value, 2)).rename(['QA_PIXEL'])
     output_img = landsat.cloud_mask_C2_l89(input_img)
-    assert utils.constant_image_value(output_img) == expected
+    assert utils.constant_image_value(output_img)['QA_PIXEL'] == expected

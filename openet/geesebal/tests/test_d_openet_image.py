@@ -12,7 +12,7 @@ import openet.geesebal.utils as utils
 
 
 # TODO: Try moving to conftest and/or make a fixture
-COLL_ID = 'LANDSAT/LC08/C01/T1_SR/'
+COLL_ID = 'LANDSAT/LC08/C02/T1_L2/'
 SCENE_ID = 'LC08_044033_20170716'
 SCENE_TIME = 1500230731090
 SCENE_DT = datetime.datetime.utcfromtimestamp(SCENE_TIME / 1000.0)
@@ -52,51 +52,58 @@ TEST_POINT = (-121.5265, 38.7399)
 #         })
 
 
-def default_image(albedo=0.2, emissivity=0.964, lai=1.4, lst=300,
-                  ndvi=0.5, ndwi=-0.1, savi=0.5):
+def default_image(albedo=0.2, emissivity=0.964, lai=1.4, lst=300, ndvi=0.5, ndwi=-0.1, savi=0.5):
     # First construct a fake 'prepped' input image
     # Map the values to an actual Landsat image
-    return ee.Image(COLL_ID + SCENE_ID) \
-        .select([0, 1, 2, 3, 4, 5, 6]) \
-        .multiply(0).double() \
-        .add(ee.Image.constant([albedo, emissivity, lai, lst, ndvi, ndwi, savi])) \
-        .rename(['albedo', 'emissivity', 'lai', 'lst', 'ndvi', 'ndwi', 'savi']) \
+    return (
+        ee.Image(COLL_ID + SCENE_ID)
+        .select([0, 1, 2, 3, 4, 5, 6])
+        .multiply(0).double()
+        .add(ee.Image.constant([albedo, emissivity, lai, lst, ndvi, ndwi, savi]))
+        .rename(['albedo', 'emissivity', 'lai', 'lst', 'ndvi', 'ndwi', 'savi'])
         .set({
             'system:index': SCENE_ID,
             'system:time_start': SCENE_TIME,
             'system:id': COLL_ID + SCENE_ID,
             'SUN_ELEVATION': SUN_ELEVATION,
         })
-    # return ee.Image.constant([albedo, emissivity, lai, lst, ndvi, ndwi, savi]) \
-    #     .rename(['albedo', 'emissivity', 'lai', 'lst', 'ndvi', 'ndwi', 'savi']) \
-    #     .set({
-    #         'system:index': SCENE_ID,
-    #         'system:time_start': SCENE_TIME,
-    #         'system:id': COLL_ID + SCENE_ID,
-    #         'SUN_ELEVATION': SUN_ELEVATION,
-    # })
+    )
 
 
 # Setting etr_source and etr_band on the default image to simplify testing
 #   but these do not have defaults in the Image class init
-def default_image_args(albedo=0.2, emissivity=0.964, lai=1.4, lst=300,
-                       ndvi=0.5, ndwi=-0.1, savi=0.5,
-                       # meteorology_source_inst='NASA/NLDAS/FORA0125_H002',
-                       # meteorology_source_daily='IDAHO_EPSCOR/GRIDMET',
-                       # elev_source='USGS/SRTMGL1_003',
-                       ndvi_cold=5, ndvi_hot=10, lst_cold=20, lst_hot=20,
-                       et_reference_source=15, et_reference_band='etr',
-                       et_reference_factor=0.85,
-                       et_reference_resample='nearest',
-                       ):
+def default_image_args(
+        albedo=0.2,
+        emissivity=0.964,
+        lai=1.4,
+        lst=300,
+        ndvi=0.5,
+        ndwi=-0.1,
+        savi=0.5,
+        # meteorology_source_inst='NASA/NLDAS/FORA0125_H002',
+        # meteorology_source_daily='IDAHO_EPSCOR/GRIDMET',
+        # elev_source='USGS/SRTMGL1_003',
+        ndvi_cold=5,
+        ndvi_hot=10,
+        lst_cold=20,
+        lst_hot=20,
+        et_reference_source=15,
+        et_reference_band='etr',
+        et_reference_factor=0.85,
+        et_reference_resample='nearest',
+        ):
     return {
-        'image': default_image(albedo=albedo, emissivity=emissivity, lai=lai,
-                               lst=lst, ndvi=ndvi, ndwi=ndwi, savi=savi),
+        'image': default_image(
+            albedo=albedo, emissivity=emissivity, lai=lai,
+            lst=lst, ndvi=ndvi, ndwi=ndwi, savi=savi
+        ),
         # 'meteorology_source_inst': meteorology_source_inst,
         # 'meteorology_source_daily': meteorology_source_daily,
         # 'elev_source': elev_source,
-        'ndvi_cold': ndvi_cold, 'ndvi_hot': ndvi_hot,
-        'lst_cold': lst_cold, 'lst_hot': lst_hot,
+        'ndvi_cold': ndvi_cold,
+        'ndvi_hot': ndvi_hot,
+        'lst_cold': lst_cold,
+        'lst_hot': lst_hot,
         'et_reference_source': et_reference_source,
         'et_reference_band': et_reference_band,
         'et_reference_factor': et_reference_factor,
@@ -104,24 +111,41 @@ def default_image_args(albedo=0.2, emissivity=0.964, lai=1.4, lst=300,
     }
 
 
-def default_image_obj(albedo=0.2, emissivity=0.964, lai=1.4, lst=300,
-                      ndvi=0.5, ndwi=-0.1, savi=0.5,
-                      # meteorology_source_inst='NASA/NLDAS/FORA0125_H002',
-                      # meteorology_source_daily='IDAHO_EPSCOR/GRIDMET',
-                      # elev_source='USGS/SRTMGL1_003',
-                      ndvi_cold=5, ndvi_hot=10, lst_cold=20, lst_hot=10,
-                      et_reference_source=15, et_reference_band='etr',
-                      et_reference_factor=0.85,
-                      et_reference_resample='nearest',
-                      ):
+def default_image_obj(
+        albedo=0.2,
+        emissivity=0.964,
+        lai=1.4,
+        lst=300,
+        ndvi=0.5,
+        ndwi=-0.1,
+        savi=0.5,
+        # meteorology_source_inst='NASA/NLDAS/FORA0125_H002',
+        # meteorology_source_daily='IDAHO_EPSCOR/GRIDMET',
+        # elev_source='USGS/SRTMGL1_003',
+        ndvi_cold=5,
+        ndvi_hot=10,
+        lst_cold=20,
+        lst_hot=10,
+        et_reference_source=15,
+        et_reference_band='etr',
+        et_reference_factor=0.85,
+        et_reference_resample='nearest',
+        ):
     return geesebal.Image(**default_image_args(
-        albedo=albedo, emissivity=emissivity, lai=lai, lst=lst,
-        ndvi=ndvi, ndwi=ndwi, savi=savi,
+        albedo=albedo,
+        emissivity=emissivity,
+        lai=lai,
+        lst=lst,
+        ndvi=ndvi,
+        ndwi=ndwi,
+        savi=savi,
         # meteorology_source_inst=meteorology_source_inst,
         # meteorology_source_daily=meteorology_source_daily,
         # elev_source=elev_source,
-        ndvi_cold=ndvi_cold, ndvi_hot=ndvi_hot,
-        lst_cold=lst_cold, lst_hot=lst_hot,
+        ndvi_cold=ndvi_cold,
+        ndvi_hot=ndvi_hot,
+        lst_cold=lst_cold,
+        lst_hot=lst_hot,
         et_reference_source=et_reference_source,
         et_reference_band=et_reference_band,
         et_reference_factor=et_reference_factor,
@@ -156,8 +180,8 @@ def test_Image_ndvi_properties():
 
 def test_Image_ndvi_defaults(expected=0.1, tol=0.001):
     output = utils.point_image_value(
-        ee.Image(default_image_obj(ndvi=expected).ndvi), TEST_POINT)
-    assert abs(output - expected) <= tol
+        ee.Image(default_image_obj(ndvi=expected).ndvi), TEST_POINT, 30)
+    assert abs(output['ndvi'] - expected) <= tol
 
 
 def test_Image_et_properties():
@@ -172,15 +196,13 @@ def test_Image_et_properties():
 # CGM - This test probably won't work since running the model with an image
 #   that is constant is going to work
 # def test_Image_et_defaults(expected=0, tol=0.001):
-#     output = utils.point_image_value(
-#         ee.Image(default_image_obj().et), TEST_POINT)
-#     assert abs(output - expected) <= tol
+#     output = utils.point_image_value(ee.Image(default_image_obj().et), TEST_POINT)
+#     assert abs(output['et'] - expected) <= tol
 
 
 def test_Image_et_reference_properties():
     """Test if properties are set on the reference ET image"""
-    output =  utils.getinfo(default_image_obj().et_reference)
-    print(default_image_obj())
+    output = utils.getinfo(default_image_obj().et_reference)
     assert output['bands'][0]['id'] == 'et_reference'
     assert output['properties']['system:index'] == SCENE_ID
     assert output['properties']['system:time_start'] == SCENE_TIME
@@ -192,19 +214,22 @@ def test_Image_et_reference_properties():
     [
         ['IDAHO_EPSCOR/GRIDMET', 'etr', 1, TEST_POINT, 11.2],
         ['IDAHO_EPSCOR/GRIDMET', 'etr', 0.85, TEST_POINT, 11.2 * 0.85],
-        ['projects/earthengine-legacy/assets/projects/climate-engine/cimis/daily',
-         'ETr_ASCE', 1, TEST_POINT, 10.125],
+        ['projects/openet/assets/reference_et/california/cimis/daily/v1',
+         'etr', 1, TEST_POINT, 10.174],
+        ['projects/openet/reference_et/california/cimis/daily/v1',
+         'etr', 1, TEST_POINT, 10.174],
+        # ['projects/earthengine-legacy/assets/projects/climate-engine/cimis/daily',
+        #  'ETr_ASCE', 1, TEST_POINT, 10.125],
         [10, 'FOO', 1, TEST_POINT, 10.0],
         [10, 'FOO', 0.85, TEST_POINT, 8.5],
     ]
 )
-def test_Image_et_reference_sources(source, band, factor, xy, expected,
-                                    tol=0.001):
+def test_Image_et_reference_sources(source, band, factor, xy, expected, tol=0.001):
     """Test getting reference ET values for a single date at a real point"""
     output = utils.point_image_value(default_image_obj(
         et_reference_source=source, et_reference_band=band,
-        et_reference_factor=factor).et_reference, xy)
-    assert abs(output - expected) <= tol
+        et_reference_factor=factor).et_reference, xy, 30)
+    assert abs(output['et_reference'] - expected) <= tol
 
 
 def test_Image_et_fraction_properties():
@@ -225,8 +250,10 @@ def test_Image_mask_properties():
     assert output['properties']['image_id'] == COLL_ID + SCENE_ID
 
 
+# CGM - Mask is a function of the ET which can't be computed for the default image
 # def test_Image_mask_values():
-#     assert utils.constant_image_value(default_image_obj().mask) == 1
+#     output = utils.point_image_value(default_image_obj().mask, TEST_POINT, 30)
+#     assert output['mask'] == 1
 
 
 def test_Image_time_properties():
@@ -238,10 +265,11 @@ def test_Image_time_properties():
     assert output['properties']['image_id'] == COLL_ID + SCENE_ID
 
 
-def test_Image_time_values():
-    """The time band should have the 0 UTC time in it for interpolation"""
-    output = utils.point_image_value(default_image_obj().time, TEST_POINT)
-    assert output == utils.millis(SCENE_0UTC_DT)
+# CGM - Time is a function of the ET which can't be computed for the default image
+# def test_Image_time_values():
+#     """The time band should have the 0 UTC time in it for interpolation"""
+#     output = utils.point_image_value(default_image_obj().time, TEST_POINT, 30)
+#     assert output['time'] == utils.millis(SCENE_0UTC_DT)
 
 
 # def test_Image_calculate_properties():
@@ -267,8 +295,7 @@ def test_Image_time_values():
 # def test_Image_calculate_variables_all():
 #     variables = {'et', 'et_fraction', 'lst', 'ndvi', 'mask', 'time'}
 #     # variables = {'et', 'et_fraction', 'et_reference', 'mask', 'ndvi', 'time'}
-#     output = utils.getinfo(default_image_obj().calculate(
-#         variables=list(variables)))
+#     output = utils.getinfo(default_image_obj().calculate(variables=list(variables)))
 #     assert set([x['id'] for x in output['bands']]) == variables
 #
 #
@@ -285,7 +312,6 @@ def test_Image_time_values():
 #     """Test if calculate method raises a valueerror for invalid variables"""
 #     with pytest.raises(ValueError):
 #         utils.getinfo(default_image_obj().calculate(['FOO']))
-
 
 
 def test_Image_from_landsat_c1_sr_default_image():
@@ -306,8 +332,7 @@ def test_Image_from_landsat_c1_sr_default_image():
 )
 def test_Image_from_landsat_c1_sr_landsat_image(image_id):
     """Test instantiating the class from a real Landsat images"""
-    output = utils.getinfo(geesebal.Image.from_landsat_c1_sr(
-        ee.Image(image_id)).ndvi)
+    output = utils.getinfo(geesebal.Image.from_landsat_c1_sr(ee.Image(image_id)).ndvi)
     assert output['properties']['system:index'] == image_id.split('/')[-1]
 
 
@@ -344,13 +369,13 @@ def test_Image_from_landsat_c2_sr_landsat_image(image_id):
 # def test_Image_from_landsat_c2_sr_exception():
 #     """Test instantiating the class for an invalid image ID"""
 #     with pytest.raises(Exception):
-#         utils.getinfo(geesebal.Image.from_landsat_c2_sr(ee.Image('DEADBEEF'))._index)
+#         geesebal.Image.from_landsat_c2_sr(ee.Image('DEADBEEF'))._index.getInfo()
 
 
 @pytest.mark.parametrize(
     'image_id',
     [
-        'LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716',
+        # 'LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716',
         'LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716',
     ]
 )
@@ -363,6 +388,6 @@ def test_Image_from_image_id(image_id):
 
 def test_Image_from_method_kwargs():
     """Test that the init parameters can be passed through the helper methods"""
-    assert geesebal.Image.from_landsat_c1_sr(
-        'LANDSAT/LC08/C01/T1_SR/LC08_042035_20150713',
+    assert geesebal.Image.from_landsat_c2_sr(
+        'LANDSAT/LC08/C02/T1_L2/LC08_042035_20150713',
         elev_source='FOO')._elev_source == 'FOO'

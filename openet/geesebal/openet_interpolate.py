@@ -149,7 +149,7 @@ def from_scene_et_fraction(scene_coll, start_date, end_date, variables,
 
     # Scale reference ET images (if necessary)
     # CGM - Resampling is not working correctly so not including for now
-    if (et_reference_factor and et_reference_factor != 1):
+    if et_reference_factor and (et_reference_factor != 1):
         def et_reference_adjust(input_img):
             return input_img.multiply(et_reference_factor) \
                 .set({'system:time_start': input_img.get('system:time_start')})
@@ -486,7 +486,7 @@ def from_scene_et_actual(scene_coll, start_date, end_date, variables,
 
         # Scale reference ET images (if necessary)
         # CGM - Resampling is not working correctly so not including for now
-        if (et_reference_factor and et_reference_factor != 1):
+        if et_reference_factor and (et_reference_factor != 1):
             def et_reference_adjust(input_img):
                 return input_img.multiply(et_reference_factor) \
                     .copyProperties(input_img) \

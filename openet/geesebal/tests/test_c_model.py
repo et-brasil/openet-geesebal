@@ -19,5 +19,6 @@ def test_soil_heat_flux(rn, ndvi, albedo, lst_dem, ndwi, expected, tol=0.1):
         rn=ee.Image.constant(rn), ndvi=ee.Image.constant(ndvi),
         albedo=ee.Image.constant(albedo),
         lst_dem=ee.Image.constant(lst_dem),
-        ndwi=ee.Image.constant(ndwi)))
-    assert abs(output - expected) <= tol
+        ndwi=ee.Image.constant(ndwi),
+    ))
+    assert abs(output['g_inst'] - expected) <= tol

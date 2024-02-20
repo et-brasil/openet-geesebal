@@ -165,8 +165,9 @@ class Image():
 
         # Image projection and geotransform
         self.crs = image.projection().crs()
-        self.transform = ee.List(ee.Dictionary(
-            ee.Algorithms.Describe(image.projection())).get('transform'))
+        self.transform = ee.List(
+            ee.Dictionary(ee.Algorithms.Describe(image.projection())).get('transform')
+        )
 
     @classmethod
     def from_image_id(cls, image_id, **kwargs):
@@ -378,10 +379,12 @@ class Image():
             'LANDSAT_9': [-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 0],
         })
 
-        prep_image = sr_image \
-            .select(input_bands.get(spacecraft_id), output_bands.get(spacecraft_id)) \
-            .multiply(ee.Image.constant(ee.List(scalars.get(spacecraft_id)))) \
+        prep_image = (
+            sr_image
+            .select(input_bands.get(spacecraft_id), output_bands.get(spacecraft_id))
+            .multiply(ee.Image.constant(ee.List(scalars.get(spacecraft_id))))
             .add(ee.Image.constant(ee.List(offsets.get(spacecraft_id))))
+        )
 
         # CGM - Need to come up with a more robust approach,
         #   but this seems to work for now
@@ -444,12 +447,14 @@ class Image():
         ])
 
         # Apply the cloud mask and add properties
-        input_image = input_image.updateMask(cloud_mask)\
+        input_image = (
+            input_image.updateMask(cloud_mask)
             .set({'system:index': sr_image.get('system:index'),
                   'system:time_start': sr_image.get('system:time_start'),
                   'system:id': sr_image.get('system:id'),
                   'SUN_ELEVATION': sr_image.get('SUN_ELEVATION'),
                   })
+        )
 
         # Instantiate the class
         return cls(input_image, **kwargs)
@@ -524,26 +529,27 @@ class Image():
     @lazy_property
     def et(self,):
 
-        et = model.et(image=self.image,
-                      ndvi=self.ndvi,
-                      ndwi=self.ndwi,
-                      lst=self.lst,
-                      albedo=self.albedo,
-                      emissivity=self.emissivity,
-                      savi=self.savi,
-                      # lai=self.lai,
-                      meteo_inst_source=self._meteorology_source_inst,
-                      meteo_daily_source=self._meteorology_source_daily,
-                      elev_product=self._elev_source,
-                      ndvi_cold=self._ndvi_cold,
-                      ndvi_hot=self._ndvi_hot,
-                      lst_cold=self._lst_cold,
-                      lst_hot=self._lst_hot,
-                      time_start=self._time_start,
-                      geometry_image=self.geometry,
-                      proj=self.proj,
-                      coords=self.coords,
-                      )
+        et = model.et(
+            image=self.image,
+            ndvi=self.ndvi,
+            ndwi=self.ndwi,
+            lst=self.lst,
+            albedo=self.albedo,
+            emissivity=self.emissivity,
+            savi=self.savi,
+            # lai=self.lai,
+            meteo_inst_source=self._meteorology_source_inst,
+            meteo_daily_source=self._meteorology_source_daily,
+            elev_product=self._elev_source,
+            ndvi_cold=self._ndvi_cold,
+            ndvi_hot=self._ndvi_hot,
+            lst_cold=self._lst_cold,
+            lst_hot=self._lst_hot,
+            time_start=self._time_start,
+            geometry_image=self.geometry,
+            proj=self.proj,
+            coords=self.coords,
+        )
 
         return et.set(self._properties)
 
@@ -570,13 +576,14 @@ class Image():
             et_reference_img = ee.Image.constant(self.et_reference_source)
         elif type(self.et_reference_source) is str:
             # Assume a string source is an image collection ID (not an image ID)
-            et_reference_coll = ee.ImageCollection(self.et_reference_source)\
-                .filterDate(self._start_date, self._end_date)\
+            et_reference_coll = (
+                ee.ImageCollection(self.et_reference_source)
+                .filterDate(self._start_date, self._end_date)
                 .select([self.et_reference_band])
+            )
             et_reference_img = ee.Image(et_reference_coll.first())
             if self.et_reference_resample in ['bilinear', 'bicubic']:
-                et_reference_img = et_reference_img\
-                    .resample(self.et_reference_resample)
+                et_reference_img = et_reference_img.resample(self.et_reference_resample)
         else:
             raise ValueError('unsupported et_reference_source: {}'.format(
                 self.et_reference_source))
@@ -595,8 +602,10 @@ class Image():
     @lazy_property
     def et_fraction(self):
         """Fraction of reference ET (equivalent to the Kc)"""
-        return self.et.divide(self.et_reference) \
+        return (
+            self.et.divide(self.et_reference)
             .rename(['et_fraction']).set(self._properties)
+        )
 
     # CGM - The mask band is currently needed for the time band
     # If the model does not do any additional masking we might be able to
@@ -605,9 +614,10 @@ class Image():
     def mask(self,):
         """Mask of all active pixels (based on the final et)"""
 
-        mask = self.et.multiply(0).add(1).updateMask(1).uint8().rename(['mask'])
-
-        return mask.set(self._properties)
+        return (
+            self.et.multiply(0).add(1).updateMask(1).uint8()
+            .rename(['mask']).set(self._properties)
+        )
 
     # CGM - The image class must have a "time" method for the interpolation
     # I'm not sure if it needs to be built from the active pixels mask
@@ -616,8 +626,7 @@ class Image():
     def time(self,):
         """Return an image of the 0 UTC time (in milliseconds)"""
 
-        time = self.mask \
-            .double().multiply(0).add(utils.date_to_time_0utc(self._date)) \
-            .rename(['time'])
-
-        return time.set(self._properties)
+        return (
+            self.mask.double().multiply(0).add(utils.date_to_time_0utc(self._date))
+            .rename(['time']).set(self._properties)
+        )

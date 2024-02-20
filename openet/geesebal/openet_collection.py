@@ -111,9 +111,8 @@ class Collection():
         # # Check reference ET parameters
         # if et_reference_factor and not utils.is_number(et_reference_factor):
         #     raise ValueError('et_reference_factor must be a number')
-        # if et_reference_factor and et_reference_factor < 0:
-        #     raise ValueError(
-        #         'et_reference_factor must be greater than zero')
+        # if et_reference_factor and (et_reference_factor < 0):
+        #     raise ValueError('et_reference_factor must be greater than zero')
         # et_reference_resample_methods = ['nearest', 'bilinear', 'bicubic']
         # if (et_reference_resample and
         #         et_reference_resample.lower() not in et_reference_resample_methods):
@@ -544,7 +543,7 @@ class Collection():
             # Scale reference ET images (if necessary)
             # CGM - Resampling is not working correctly so not including for now
             if (self.model_args['et_reference_factor'] and
-                     self.model_args['et_reference_factor'] != 1):
+                    (self.model_args['et_reference_factor'] != 1)):
                 def et_reference_adjust(input_img):
                     return input_img \
                         .multiply(self.model_args['et_reference_factor']) \
