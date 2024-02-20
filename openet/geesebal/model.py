@@ -12,6 +12,7 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
        meteo_inst_source, meteo_daily_source, elev_product,
        ndvi_cold, ndvi_hot, lst_cold, lst_hot,
        time_start, geometry_image, proj, coords,
+       calibration_points=10, max_iterations=15,
        ):
     """
     Daily Evapotranspiration [mm day-1].
@@ -53,6 +54,10 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
         Landsat image projection.
     coords : ee.Image
         Landsat image Latitude and longitude.
+    calibration_points : int
+        Number of calibration points (the default is 10).
+    max_iterations : int
+        Maximum number of iterations (the default is 15).
 
     Returns
     -------
@@ -111,7 +116,7 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
         # Cold pixel for wet conditions repretation of the image
         fc_cold_pixels = cold_pixel(
             albedo, ndvi, ndwi, lst_dem, p_top_NDVI, p_coldest_Ts,
-            geometry_image, coords, proj, elev,
+            geometry_image, coords, proj, elev, calibration_points,
         )
 
         # Instantaneous net radiation using reanalysis dataset
@@ -129,11 +134,13 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
         fc_hot_pixels = fexp_hot_pixel(
             time_start, albedo, ndvi, ndwi, lst_dem, rad_inst, g_inst,
             p_lowest_NDVI, p_hottest_Ts, geometry_image, coords, proj, elev,
+            calibration_points,
         )
 
         # Instantaneous sensible heat flux (h)
         h_inst = sensible_heat_flux(
             savi, ux, fc_cold_pixels, fc_hot_pixels, lst_dem, lst, elev, geometry_image,
+            max_iterations,
         )
 
         # Daily evapotranspiration (et)
@@ -465,6 +472,8 @@ def lst_correction(time_start, lst, dem, tair, rh, sun_elevation, hour, minutes,
 
     References
     ----------
+    TODO: Add full Zaafar and Farah 2020 reference here
+
     """
     # Solar constant [W m-2]
     gsc = ee.Number(1367)
@@ -499,12 +508,12 @@ def lst_correction(time_start, lst, dem, tair, rh, sun_elevation, hour, minutes,
     tao_sw_img = tao_sw(dem, tair, rh, sun_elevation, cos_zn)
 
     # Corrected Land Surface temperature [K] (Zaafar and Farah (2020) Eqn 2)
-    # CGM - Simplified equation to pull "Gsc * dr * Transm_corr out"
+    # CGM - Simplified equation to pull "Gsc * dr * Transm_corr" out
     lst_dem = lst.expression(
-        'Temp_corr + Gsc * dr * Transm_corr (cos_zn - cos_zenith_flat) / (air_dens * 1004 * 0.050)',
+        'Temp_corr + Gsc * dr * Transm_corr * (cos_zn - cos_zenith_flat) / (air_dens * 1004 * 0.05)',
         {
             'Temp_corr': temp_corr, 'Gsc': gsc, 'dr': dr, 'Transm_corr': tao_sw_img,
-             'cos_zenith_flat': cos_theta, 'cos_zn': cos_zn, 'air_dens': air_dens,
+            'cos_zenith_flat': cos_theta, 'cos_zn': cos_zn, 'air_dens': air_dens,
         }
     )
 
@@ -618,6 +627,7 @@ def homogeneous_mask(ndvi, proj):
 
 def cold_pixel(
         albedo, ndvi, ndwi, lst_dem, ndvi_cold, lst_cold, geometry_image, coords, proj, dem,
+        calibration_points=10,
         ):
     """
     Simplified CIMEC method to select the cold pixel
@@ -642,6 +652,8 @@ def cold_pixel(
         Landsat image projection.
     dem : ee.Image
         Elevation data [m].
+    calibration_points : int
+        Number of calibration points (the default is 10).
 
     Returns
     -------
@@ -752,7 +764,7 @@ def cold_pixel(
     fc_cold_pix = ee.FeatureCollection(ee.Algorithms.If(
         n_sum_final_cold_pix.gte(3000),
         c_lst_cold20.stratifiedSample(
-            numPoints=10,
+            numPoints=calibration_points,
             classBand='int',
             region=geometry_image,
             scale=30,
@@ -993,7 +1005,7 @@ def radiation_24h(time_start, tmax, tmin, elev, sun_elevation, cos_terrain, rso2
 
 def fexp_hot_pixel(
         time_start, albedo, ndvi, ndwi, lst_dem, rn, g, ndvi_hot, lst_hot,
-        geometry_image, coords, proj, dem,
+        geometry_image, coords, proj, dem, calibration_points=10,
         ):
     """
     Simplified CIMEC method to select the hot pixel
@@ -1023,6 +1035,8 @@ def fexp_hot_pixel(
         Latitude and longitude coordinates of the image.
     proj : ee.Dictionary
         Landsat image projection.
+    calibration_points : int
+        Number of calibration points (the default is 10).
 
     Returns
     -------
@@ -1127,7 +1141,7 @@ def fexp_hot_pixel(
     fc_hot_pix = ee.FeatureCollection(ee.Algorithms.If(
         n_sum_final_hot_pix.gt(3000),
         c_lst_hotpix.stratifiedSample(
-            numPoints=10,
+            numPoints=calibration_points,
             classBand='int',
             region=geometry_image,
             scale=30,
@@ -1183,6 +1197,7 @@ def sensible_heat_flux(
         lst,
         dem,
         geometry_image,
+        max_iterations=15,
         ):
     """
     Instantaneous Sensible Heat Flux [W m-2]
@@ -1205,6 +1220,8 @@ def sensible_heat_flux(
         Digital elevation product [m].
     geometry_image : ee.Geometry
         Image geometry.
+    max_iterations : int
+        Maximum number of iterations (the default is 15).
 
     Returns
     -------
@@ -1422,7 +1439,7 @@ def sensible_heat_flux(
 
             # Apply iterative function
 
-            iterations = ee.List.repeat(1, 15)
+            iterations = ee.List.repeat(1, max_iterations)
 
             img_h_inputs_list = ee.List(iterations.iterate(iterative, img_ufr_rah))
 

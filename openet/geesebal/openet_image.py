@@ -85,6 +85,10 @@ class Image():
             et_reference_resample : {'nearest', 'bilinear', 'bicubic', None}
                 Reference ET resampling.  The default is None which is
                 equivalent to nearest neighbor resampling.
+            calibration_points : int
+                Number of calibration points (the default is 10).
+            max_iterations : int
+                Maximum number of iterations (the default is 15).
 
         Notes
         -----
@@ -104,9 +108,11 @@ class Image():
         }
         # Build SCENE_ID from the (possibly merged) system:index
         scene_id = ee.List(ee.String(self._index).split('_')).slice(-3)
-        self._scene_id = ee.String(scene_id.get(0)).cat('_')\
-            .cat(ee.String(scene_id.get(1))).cat('_')\
+        self._scene_id = (
+            ee.String(scene_id.get(0)).cat('_')
+            .cat(ee.String(scene_id.get(1))).cat('_')
             .cat(ee.String(scene_id.get(2)))
+        )
 
         # Build WRS2_TILE from the scene_id
         self._wrs2_tile = ee.String('p').cat(self._scene_id.slice(5, 8))\
@@ -168,6 +174,17 @@ class Image():
         self.transform = ee.List(
             ee.Dictionary(ee.Algorithms.Describe(image.projection())).get('transform')
         )
+
+        # CGM - Testing out passing as a kwargs but could be dedicated function params
+        try:
+            self.calibration_points = kwargs['calibration_points']
+        except:
+            self.calibration_points = 10
+
+        try:
+            self.max_iterations = kwargs['max_iterations']
+        except:
+            self.max_iterations = 15
 
     @classmethod
     def from_image_id(cls, image_id, **kwargs):
@@ -549,6 +566,8 @@ class Image():
             geometry_image=self.geometry,
             proj=self.proj,
             coords=self.coords,
+            calibration_points=self.calibration_points,
+            max_iterations=self.max_iterations,
         )
 
         return et.set(self._properties)
@@ -585,8 +604,7 @@ class Image():
             if self.et_reference_resample in ['bilinear', 'bicubic']:
                 et_reference_img = et_reference_img.resample(self.et_reference_resample)
         else:
-            raise ValueError('unsupported et_reference_source: {}'.format(
-                self.et_reference_source))
+            raise ValueError(f'unsupported et_reference_source: {self.et_reference_source}')
 
         if self.et_reference_factor:
             et_reference_img = et_reference_img.multiply(self.et_reference_factor)

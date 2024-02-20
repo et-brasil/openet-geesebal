@@ -35,7 +35,12 @@ default_coll_args = {
         'et_reference_source': 'IDAHO_EPSCOR/GRIDMET',
         'et_reference_band': 'eto',
         'et_reference_factor': 0.85,
-        'et_reference_resample': 'nearest'},
+        'et_reference_resample': 'nearest',
+        # CGM - Dropping number of calibrations points and iterations for testing
+        #   to avoid memory errors and timeouts
+        'calibration_points': 1,
+        'max_iterations': 4,
+    },
     'filter_args': {},
     # 'interp_args': {},
 }
