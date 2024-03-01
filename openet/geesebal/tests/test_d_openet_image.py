@@ -12,8 +12,9 @@ import openet.geesebal.utils as utils
 
 
 # TODO: Try moving to conftest and/or make a fixture
-COLL_ID = 'LANDSAT/LC08/C02/T1_L2/'
+COLL_ID = 'LANDSAT/LC08/C02/T1_L2'
 SCENE_ID = 'LC08_044033_20170716'
+IMAGE_ID = f'{COLL_ID}/{SCENE_ID}'
 SCENE_TIME = 1500230731090
 SCENE_DT = datetime.datetime.utcfromtimestamp(SCENE_TIME / 1000.0)
 SCENE_DATE = SCENE_DT.strftime('%Y-%m-%d')
@@ -34,7 +35,7 @@ TEST_POINT = (-121.5265, 38.7399)
 #         .set({
 #             'system:index': SCENE_ID,
 #             'system:time_start': SCENE_TIME,
-#             'system:id': f'{COLL_ID}/{SCENE_ID}',
+#             'system:id': IMAGE_ID,
 #             'SUN_ELEVATION': SUN_ELEVATION,
 #         })
 
@@ -47,7 +48,7 @@ TEST_POINT = (-121.5265, 38.7399)
 #         .set({
 #             'system:index': SCENE_ID,
 #             'system:time_start': SCENE_TIME,
-#             'system:id': COLL_ID + SCENE_ID',
+#             'system:id': IMAGE_ID,
 #             'SUN_ELEVATION': SUN_ELEVATION,
 #         })
 
@@ -56,7 +57,7 @@ def default_image(albedo=0.2, emissivity=0.964, lai=1.4, lst=300, ndvi=0.5, ndwi
     # First construct a fake 'prepped' input image
     # Map the values to an actual Landsat image
     return (
-        ee.Image(COLL_ID + SCENE_ID)
+        ee.Image(IMAGE_ID)
         .select([0, 1, 2, 3, 4, 5, 6])
         .multiply(0).double()
         .add(ee.Image.constant([albedo, emissivity, lai, lst, ndvi, ndwi, savi]))
@@ -64,7 +65,7 @@ def default_image(albedo=0.2, emissivity=0.964, lai=1.4, lst=300, ndvi=0.5, ndwi
         .set({
             'system:index': SCENE_ID,
             'system:time_start': SCENE_TIME,
-            'system:id': COLL_ID + SCENE_ID,
+            'system:id': IMAGE_ID,
             'SUN_ELEVATION': SUN_ELEVATION,
         })
     )
@@ -91,6 +92,10 @@ def default_image_args(
         et_reference_band='etr',
         et_reference_factor=0.85,
         et_reference_resample='nearest',
+        # CGM - Dropping number of calibrations points and iterations for testing
+        #   to avoid memory errors and timeouts
+        calibration_points=1,
+        max_iterations=4,
         ):
     return {
         'image': default_image(
@@ -108,6 +113,8 @@ def default_image_args(
         'et_reference_band': et_reference_band,
         'et_reference_factor': et_reference_factor,
         'et_reference_resample': et_reference_resample,
+        'calibration_points': calibration_points,
+        'max_iterations': max_iterations,
     }
 
 
@@ -130,6 +137,10 @@ def default_image_obj(
         et_reference_band='etr',
         et_reference_factor=0.85,
         et_reference_resample='nearest',
+        # CGM - Dropping number of calibrations points and iterations for testing
+        #   to avoid memory errors and timeouts
+        calibration_points=1,
+        max_iterations=4,
         ):
     return geesebal.Image(**default_image_args(
         albedo=albedo,
@@ -150,6 +161,8 @@ def default_image_obj(
         et_reference_band=et_reference_band,
         et_reference_factor=et_reference_factor,
         et_reference_resample=et_reference_resample,
+        calibration_points=calibration_points,
+        max_iterations=max_iterations,
     ))
 
 
@@ -175,7 +188,7 @@ def test_Image_ndvi_properties():
     assert output['bands'][0]['id'] == 'ndvi'
     assert output['properties']['system:index'] == SCENE_ID
     assert output['properties']['system:time_start'] == SCENE_TIME
-    assert output['properties']['image_id'] == COLL_ID + SCENE_ID
+    assert output['properties']['image_id'] == IMAGE_ID
 
 
 def test_Image_ndvi_defaults(expected=0.1, tol=0.001):
@@ -184,20 +197,32 @@ def test_Image_ndvi_defaults(expected=0.1, tol=0.001):
     assert abs(output['ndvi'] - expected) <= tol
 
 
+def test_Image_ndvi_values():
+    output = utils.point_image_value(geesebal.Image.from_image_id(
+        IMAGE_ID, calibration_points=1, max_iterations=4).ndvi, TEST_POINT, 30)
+    assert output['ndvi'] > 0
+
+
 def test_Image_et_properties():
     """Test band name and if properties are set on the image"""
     output = utils.getinfo(default_image_obj().et)
     assert output['bands'][0]['id'] == 'et'
     assert output['properties']['system:index'] == SCENE_ID
     assert output['properties']['system:time_start'] == SCENE_TIME
-    assert output['properties']['image_id'] == COLL_ID + SCENE_ID
+    assert output['properties']['image_id'] == IMAGE_ID
 
 
 # CGM - This test probably won't work since running the model with an image
-#   that is constant is going to work
+#   that is constant is not going to work
 # def test_Image_et_defaults(expected=0, tol=0.001):
 #     output = utils.point_image_value(ee.Image(default_image_obj().et), TEST_POINT)
 #     assert abs(output['et'] - expected) <= tol
+
+
+def test_Image_et_values():
+    output = utils.point_image_value(geesebal.Image.from_image_id(
+        IMAGE_ID, calibration_points=1, max_iterations=4).et, TEST_POINT, 30)
+    assert output['et'] > 0
 
 
 def test_Image_et_reference_properties():
@@ -206,7 +231,7 @@ def test_Image_et_reference_properties():
     assert output['bands'][0]['id'] == 'et_reference'
     assert output['properties']['system:index'] == SCENE_ID
     assert output['properties']['system:time_start'] == SCENE_TIME
-    assert output['properties']['image_id'] == COLL_ID + SCENE_ID
+    assert output['properties']['image_id'] == IMAGE_ID
 
 
 @pytest.mark.parametrize(
@@ -238,7 +263,17 @@ def test_Image_et_fraction_properties():
     assert output['bands'][0]['id'] == 'et_fraction'
     assert output['properties']['system:index'] == SCENE_ID
     assert output['properties']['system:time_start'] == SCENE_TIME
-    assert output['properties']['image_id'] == COLL_ID + SCENE_ID
+    assert output['properties']['image_id'] == IMAGE_ID
+
+
+# # CGM - Not sure why this one doesn't run
+# def test_Image_et_fraction_values():
+#     output = utils.point_image_value(geesebal.Image.from_image_id(
+#         IMAGE_ID, calibration_points=1, max_iterations=4,
+#         et_reference_soruce='projects/openet/assets/reference_et/california/cimis/daily/v1',
+#         et_reference_band='eto', et_reference_factor=1.0
+#     ).et_fraction, TEST_POINT, 30)
+#     assert output['et_fraction'] > 0
 
 
 def test_Image_mask_properties():
@@ -247,13 +282,13 @@ def test_Image_mask_properties():
     assert output['bands'][0]['id'] == 'mask'
     assert output['properties']['system:index'] == SCENE_ID
     assert output['properties']['system:time_start'] == SCENE_TIME
-    assert output['properties']['image_id'] == COLL_ID + SCENE_ID
+    assert output['properties']['image_id'] == IMAGE_ID
 
 
-# CGM - Mask is a function of the ET which can't be computed for the default image
-# def test_Image_mask_values():
-#     output = utils.point_image_value(default_image_obj().mask, TEST_POINT, 30)
-#     assert output['mask'] == 1
+def test_Image_mask_values():
+    output = utils.point_image_value(geesebal.Image.from_image_id(
+        IMAGE_ID, calibration_points=1, max_iterations=4).mask, TEST_POINT, 30)
+    assert output['mask'] > 0
 
 
 def test_Image_time_properties():
@@ -262,56 +297,56 @@ def test_Image_time_properties():
     assert output['bands'][0]['id'] == 'time'
     assert output['properties']['system:index'] == SCENE_ID
     assert output['properties']['system:time_start'] == SCENE_TIME
-    assert output['properties']['image_id'] == COLL_ID + SCENE_ID
+    assert output['properties']['image_id'] == IMAGE_ID
 
 
-# CGM - Time is a function of the ET which can't be computed for the default image
-# def test_Image_time_values():
-#     """The time band should have the 0 UTC time in it for interpolation"""
-#     output = utils.point_image_value(default_image_obj().time, TEST_POINT, 30)
-#     assert output['time'] == utils.millis(SCENE_0UTC_DT)
+def test_Image_mask_values():
+    output = utils.point_image_value(geesebal.Image.from_image_id(
+        IMAGE_ID, calibration_points=1, max_iterations=4).time, TEST_POINT, 30)
+    assert output['time'] > 0
 
 
-# def test_Image_calculate_properties():
-#     """Test if properties are set on the output image"""
-#     output =  utils.getinfo(default_image_obj().calculate(['ndvi']))
-#     assert output['properties']['system:index'] == SCENE_ID
-#     assert output['properties']['system:time_start'] == SCENE_TIME
-#     assert output['properties']['image_id'] == COLL_ID + SCENE_ID
-#
-#
-# def test_Image_calculate_variables_default():
-#     output = utils.getinfo(default_image_obj().calculate())
-#     assert set([x['id'] for x in output['bands']]) == {'ndvi', 'lst', 'et', 'et_fraction'}
-#     # assert set([x['id'] for x in output['bands']]) == {'et'}
-#
-#
-# def test_Image_calculate_variables_custom():
-#     variables = {'ndvi'}
-#     output = utils.getinfo(default_image_obj().calculate(variables))
-#     assert set([x['id'] for x in output['bands']]) == variables
-#
-#
-# def test_Image_calculate_variables_all():
-#     variables = {'et', 'et_fraction', 'lst', 'ndvi', 'mask', 'time'}
-#     # variables = {'et', 'et_fraction', 'et_reference', 'mask', 'ndvi', 'time'}
-#     output = utils.getinfo(default_image_obj().calculate(variables=list(variables)))
-#     assert set([x['id'] for x in output['bands']]) == variables
-#
-#
+def test_Image_calculate_properties():
+    """Test if properties are set on the output image"""
+    output =  utils.getinfo(default_image_obj().calculate(['ndvi']))
+    assert output['properties']['system:index'] == SCENE_ID
+    assert output['properties']['system:time_start'] == SCENE_TIME
+    assert output['properties']['image_id'] == IMAGE_ID
+
+
+def test_Image_calculate_variables_default():
+    output = utils.getinfo(default_image_obj().calculate())
+    assert set([x['id'] for x in output['bands']]) == {'ndvi', 'lst', 'et', 'et_fraction'}
+    # assert set([x['id'] for x in output['bands']]) == {'et'}
+
+
+def test_Image_calculate_variables_custom():
+    variables = {'ndvi'}
+    output = utils.getinfo(default_image_obj().calculate(variables))
+    assert set([x['id'] for x in output['bands']]) == variables
+
+
+def test_Image_calculate_variables_all():
+    variables = {'et', 'et_fraction', 'lst', 'ndvi', 'mask', 'time'}
+    # variables = {'et', 'et_fraction', 'et_reference', 'mask', 'ndvi', 'time'}
+    output = utils.getinfo(default_image_obj().calculate(variables=list(variables)))
+    assert set([x['id'] for x in output['bands']]) == variables
+
+
+# CGM - Figure out why test fails
 # def test_Image_calculate_values():
 #     """Test if the calculate method returns values"""
 #     output_img = default_image_obj().calculate(['et'])
 #     # output_img = default_image_obj().calculate(['et', 'et_reference', 'et_fraction'])
-#     assert utils.constant_image_value(output_img.select(['et'])) > 0
-#     # assert utils.constant_image_value(output_img.select(['et_reference'])) > 0
-#     # assert utils.constant_image_value(output_img.select(['et_fraction'])) > 0
-#
-#
-# def test_Image_calculate_variables_valueerror():
-#     """Test if calculate method raises a valueerror for invalid variables"""
-#     with pytest.raises(ValueError):
-#         utils.getinfo(default_image_obj().calculate(['FOO']))
+#     assert utils.constant_image_value(output_img.select(['et']))['et'] > 0
+#     # assert utils.constant_image_value(output_img.select(['et_reference']))['et_reference'] > 0
+#     # assert utils.constant_image_value(output_img.select(['et_fraction']))['et_fraction'] > 0
+
+
+def test_Image_calculate_variables_valueerror():
+    """Test if calculate method raises a valueerror for invalid variables"""
+    with pytest.raises(ValueError):
+        utils.getinfo(default_image_obj().calculate(['FOO']))
 
 
 def test_Image_from_landsat_c1_sr_default_image():
@@ -375,7 +410,6 @@ def test_Image_from_landsat_c2_sr_landsat_image(image_id):
 @pytest.mark.parametrize(
     'image_id',
     [
-        # 'LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716',
         'LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716',
     ]
 )

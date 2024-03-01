@@ -593,7 +593,9 @@ class Collection():
 
         # Build initial scene image collection
         scene_coll = self._build(
-            variables=interp_vars, start_date=interp_start_date, end_date=interp_end_date,
+            variables=interp_vars,
+            start_date=interp_start_date,
+            end_date=interp_end_date,
         )
 
         # For count, compute the composite/mosaic image for the mask band only
@@ -648,10 +650,12 @@ class Collection():
             return img.addBands([et_norm_img.double(), target_img.rename(['norm'])])
 
         # The time band is always needed for interpolation
-        scene_coll = scene_coll \
-            .filterDate(interp_start_date, interp_end_date) \
-            .select(['et'] + ['time']) \
+        scene_coll = (
+            scene_coll
+            .filterDate(interp_start_date, interp_end_date)
+            .select(['et'] + ['time'])
             .map(normalize_et)
+        )
 
         # Interpolate to a daily time step
         daily_coll = interpolate.daily(

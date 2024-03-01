@@ -187,8 +187,9 @@ def test_Collection_build_default():
 
 def test_Collection_build_variables_custom(variable='ndvi'):
     # Check that setting the build variables overrides the collection variables
-    output = utils.getinfo(default_coll_obj()._build(variables=[variable])
-                           .first().bandNames())
+    output = utils.getinfo(
+        default_coll_obj()._build(variables=[variable]).first().bandNames()
+    )
     assert set(output) == {variable}
 
 
@@ -222,8 +223,7 @@ def test_Collection_build_invalid_variable_exception():
 def test_Collection_build_dates():
     """Check that dates passed to build function override Class dates"""
     coll_obj = default_coll_obj(start_date='2017-08-01', end_date='2017-09-01')
-    output = utils.getinfo(coll_obj._build(
-        start_date='2017-07-16', end_date='2017-07-17'))
+    output = utils.getinfo(coll_obj._build(start_date='2017-07-16', end_date='2017-07-17'))
     assert parse_scene_id(output) == ['LC08_044033_20170716']
 
 

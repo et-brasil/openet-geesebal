@@ -10,9 +10,16 @@ import openet.core.interpolate
 from . import utils
 
 
-def from_scene_et_fraction(scene_coll, start_date, end_date, variables,
-                           interp_args, model_args, t_interval,
-                           use_joins=False):
+def from_scene_et_fraction(
+        scene_coll,
+        start_date,
+        end_date,
+        variables,
+        interp_args,
+        model_args,
+        t_interval,
+        use_joins=False
+        ):
     """
 
     Parameters
@@ -136,14 +143,18 @@ def from_scene_et_fraction(scene_coll, start_date, end_date, variables,
     if type(et_reference_source) is str:
         # Assume a string source is an single image collection ID
         #   not an list of collection IDs or ee.ImageCollection
-        daily_et_ref_coll = ee.ImageCollection(et_reference_source) \
-            .filterDate(start_date, end_date) \
+        daily_et_ref_coll = (
+            ee.ImageCollection(et_reference_source)
+            .filterDate(start_date, end_date)
             .select([et_reference_band], ['et_reference'])
+        )
     # elif isinstance(et_reference_source, computedobject.ComputedObject):
     #     # Interpret computed objects as image collections
-    #     daily_et_reference_coll = et_reference_source \
-    #         .filterDate(self.start_date, self.end_date) \
+    #     daily_et_reference_coll = (
+    #         et_reference_source
+    #         .filterDate(self.start_date, self.end_date)
     #         .select([et_reference_band])
+    #     )
     else:
         raise ValueError(f'unsupported et_reference_source: {et_reference_source}')
 
@@ -182,19 +193,21 @@ def from_scene_et_fraction(scene_coll, start_date, end_date, variables,
             time band instead of setting it here.
 
         """
-        mask_img = img.select(['et_fraction'], ['mask']) \
-            .multiply(0).add(1).updateMask(1).uint8()
-        time_img = img.select(['et_fraction'], ['time']) \
-            .double().multiply(0) \
+        mask_img = img.select(['et_fraction'], ['mask']).multiply(0).add(1).updateMask(1).uint8()
+        time_img = (
+            img.select(['et_fraction'], ['time']).double().multiply(0)
             .add(utils.date_to_time_0utc(ee.Date(img.get('system:time_start'))))
+        )
 
         # TODO: This should probably check if the scale_factor property
         # TODO:   exists and is not 1
-        return img.select(interp_vars) \
-            .double().multiply(ee.Number(img.get('scale_factor'))) \
-            .addBands([mask_img, time_img]) \
+        return (
+            img.select(interp_vars)
+            .double().multiply(ee.Number(img.get('scale_factor')))
+            .addBands([mask_img, time_img])
             .set({'system:time_start': ee.Number(img.get('system:time_start'))})
-        #     .set({'image_id': ee.String(img.get('system:index'))})
+            # .set({'image_id': ee.String(img.get('system:index'))})
+        )
 
     # Filter scene collection to the interpolation range
     # This may not be needed since scene_coll was built to this range
@@ -205,8 +218,8 @@ def from_scene_et_fraction(scene_coll, start_date, end_date, variables,
     # For count, compute the composite/mosaic image for the mask band only
     if 'count' in variables:
         aggregate_coll = openet.core.interpolate.aggregate_to_daily(
-            image_coll=scene_coll.select(['mask']),
-            start_date=start_date, end_date=end_date)
+            image_coll=scene_coll.select(['mask']), start_date=start_date, end_date=end_date,
+        )
         # The following is needed because the aggregate collection can be
         #   empty if there are no scenes in the target date range but there
         #   are scenes in the interpolation date range.
@@ -214,7 +227,8 @@ def from_scene_et_fraction(scene_coll, start_date, end_date, variables,
         #   bands will be which causes a non-homogeneous image collection.
         aggregate_coll = aggregate_coll.merge(
             ee.Image.constant(0).rename(['mask'])
-                .set({'system:time_start': ee.Date(start_date).millis()}))
+            .set({'system:time_start': ee.Date(start_date).millis()})
+        )
 
     # Interpolate to a daily time step
     # NOTE: the daily function is not computing ET (ETf x ETr)
@@ -222,9 +236,10 @@ def from_scene_et_fraction(scene_coll, start_date, end_date, variables,
     daily_coll = openet.core.interpolate.daily(
         target_coll=daily_et_ref_coll,
         source_coll=scene_coll.select(interp_vars),
-        interp_method=interp_method, interp_days=interp_days,
+        interp_method=interp_method,
+        interp_days=interp_days,
         use_joins=use_joins,
-        compute_product=False
+        compute_product=False,
     )
 
     # Compute ET from ETf and ETr (if necessary)
@@ -232,8 +247,7 @@ def from_scene_et_fraction(scene_coll, start_date, end_date, variables,
     # if 'et' in variables or 'et_fraction' in variables:
     def compute_et(img):
         """This function assumes ETr and ETf are present"""
-        et_img = img.select(['et_fraction'])\
-            .multiply(img.select(['et_reference']))
+        et_img = img.select(['et_fraction']).multiply(img.select(['et_reference']))
         return img.addBands(et_img.double().rename('et'))
     daily_coll = daily_coll.map(compute_et)
 
@@ -260,15 +274,12 @@ def from_scene_et_fraction(scene_coll, start_date, end_date, variables,
 
         """
         if 'et' in variables or 'et_fraction' in variables:
-            et_img = daily_coll.filterDate(agg_start_date, agg_end_date) \
-                .select(['et']).sum()
+            et_img = daily_coll.filterDate(agg_start_date, agg_end_date).select(['et']).sum()
         if 'et_reference' in variables or 'et_fraction' in variables:
             # Get reference ET from the original collection instead of from
             #   the interpolated daily collection.
             # et_reference_img = daily_coll.select(['et_reference']) \
-            et_reference_img = daily_et_ref_coll \
-                .filterDate(agg_start_date, agg_end_date) \
-                .sum()
+            et_reference_img = daily_et_ref_coll.filterDate(agg_start_date, agg_end_date).sum()
 
         image_list = []
         if 'et' in variables:
@@ -277,19 +288,18 @@ def from_scene_et_fraction(scene_coll, start_date, end_date, variables,
             image_list.append(et_reference_img.float())
         if 'et_fraction' in variables:
             # Compute average et fraction over the aggregation period
-            image_list.append(
-                et_img.divide(et_reference_img).rename(
-                    ['et_fraction']).float())
+            image_list.append(et_img.divide(et_reference_img).rename(['et_fraction']).float())
         if 'ndvi' in variables:
             # Compute average ndvi over the aggregation period
-            ndvi_img = daily_coll \
-                .filterDate(agg_start_date, agg_end_date) \
+            ndvi_img = daily_coll.filterDate(agg_start_date, agg_end_date) \
                 .mean().select(['ndvi']).float()
             image_list.append(ndvi_img)
         if 'count' in variables:
-            count_img = aggregate_coll \
-                .filterDate(agg_start_date, agg_end_date) \
+            count_img = (
+                aggregate_coll
+                .filterDate(agg_start_date, agg_end_date)
                 .select(['mask']).sum().rename('count').uint8()
+            )
             image_list.append(count_img)
 
         return ee.Image(image_list) \
@@ -309,7 +319,8 @@ def from_scene_et_fraction(scene_coll, start_date, end_date, variables,
             return aggregate_image(
                 agg_start_date=agg_start_date,
                 agg_end_date=ee.Date(agg_start_date).advance(1, 'day'),
-                date_format='YYYYMMdd')
+                date_format='YYYYMMdd',
+            )
 
         return ee.ImageCollection(daily_coll.map(agg_daily))
 
@@ -327,7 +338,8 @@ def from_scene_et_fraction(scene_coll, start_date, end_date, variables,
             return aggregate_image(
                 agg_start_date=agg_start_date,
                 agg_end_date=ee.Date(agg_start_date).advance(1, 'month'),
-                date_format='YYYYMM')
+                date_format='YYYYMM',
+            )
 
         return ee.ImageCollection(month_list.map(agg_monthly))
 
@@ -344,20 +356,30 @@ def from_scene_et_fraction(scene_coll, start_date, end_date, variables,
             return aggregate_image(
                 agg_start_date=agg_start_date,
                 agg_end_date=ee.Date(agg_start_date).advance(1, 'year'),
-                date_format='YYYY')
+                date_format='YYYY',
+            )
 
         return ee.ImageCollection(year_list.map(agg_annual))
 
     elif t_interval.lower() == 'custom':
         # Returning an ImageCollection to be consistent
         return ee.ImageCollection(aggregate_image(
-            agg_start_date=start_date, agg_end_date=end_date,
-            date_format='YYYYMMdd'))
+            agg_start_date=start_date,
+            agg_end_date=end_date,
+            date_format='YYYYMMdd',
+        ))
 
 
-def from_scene_et_actual(scene_coll, start_date, end_date, variables,
-                         interp_args, model_args, t_interval,
-                         use_joins=False):
+def from_scene_et_actual(
+        scene_coll,
+        start_date,
+        end_date,
+        variables,
+        interp_args,
+        model_args,
+        t_interval,
+        use_joins=False,
+        ):
     """
 
     Parameters
@@ -480,17 +502,21 @@ def from_scene_et_actual(scene_coll, start_date, end_date, variables,
         # Assume a string source is an single image collection ID
         #   not an list of collection IDs or ee.ImageCollection
         daily_et_ref_coll_id = model_args['et_reference_source']
-        daily_et_ref_coll = ee.ImageCollection(daily_et_ref_coll_id) \
-            .filterDate(start_date, end_date) \
+        daily_et_ref_coll = (
+            ee.ImageCollection(daily_et_ref_coll_id)
+            .filterDate(start_date, end_date)
             .select([model_args['et_reference_band']], ['et_reference'])
+        )
 
         # Scale reference ET images (if necessary)
         # CGM - Resampling is not working correctly so not including for now
         if et_reference_factor and (et_reference_factor != 1):
             def et_reference_adjust(input_img):
-                return input_img.multiply(et_reference_factor) \
-                    .copyProperties(input_img) \
+                return (
+                    input_img.multiply(et_reference_factor)
+                    .copyProperties(input_img)
                     .set({'system:time_start': input_img.get('system:time_start')})
+                )
             daily_et_ref_coll = daily_et_ref_coll.map(et_reference_adjust)
 
     # Get the interpolation collection
@@ -517,15 +543,19 @@ def from_scene_et_actual(scene_coll, start_date, end_date, variables,
     #   scene collection in order to normalize the scenes.
     # It will be filtered again to the start/end when it is sent into
     #   interpolate.daily()
-    daily_target_coll = ee.ImageCollection(interp_args['interp_source']) \
-        .filterDate(interp_start_date, interp_end_date) \
+    daily_target_coll = (
+        ee.ImageCollection(interp_args['interp_source'])
+        .filterDate(interp_start_date, interp_end_date)
         .select([interp_args['interp_band']])
+    )
 
     # For count, compute the composite/mosaic image for the mask band only
     if 'count' in variables:
         aggregate_coll = openet.core.interpolate.aggregate_to_daily(
             image_coll=scene_coll.select(['mask']),
-            start_date=start_date, end_date=end_date)
+            start_date=start_date,
+            end_date=end_date,
+        )
         # The following is needed because the aggregate collection can be
         #   empty if there are no scenes in the target date range but there
         #   are scenes in the interpolation date range.
@@ -533,15 +563,16 @@ def from_scene_et_actual(scene_coll, start_date, end_date, variables,
         #   bands will be which causes a non-homogeneous image collection.
         aggregate_coll = aggregate_coll.merge(
             ee.Image.constant(0).rename(['mask'])
-                .set({'system:time_start': ee.Date(start_date).millis()}))
+            .set({'system:time_start': ee.Date(start_date).millis()})
+        )
 
     # It might be more efficient to join the target collection to the scenes
     def normalize_et(img):
-        img_date = ee.Date(img.get('system:time_start')) \
-            .update(hour=0, minute=0, second=0)
+        img_date = ee.Date(img.get('system:time_start')).update(hour=0, minute=0, second=0)
         img_date = ee.Date(img_date.millis().divide(1000).floor().multiply(1000))
-        target_img = ee.Image(daily_target_coll \
-            .filterDate(img_date, img_date.advance(1, 'day')).first())
+        target_img = ee.Image(
+            daily_target_coll.filterDate(img_date, img_date.advance(1, 'day')).first()
+        )
 
         # CGM - This is causing weird artifacts in the output images
         # if interp_args['interp_resample'].lower() in ['bilinear', 'bicubic']:
@@ -563,10 +594,12 @@ def from_scene_et_actual(scene_coll, start_date, end_date, variables,
         return img.addBands([et_norm_img.double(), target_img.rename(['norm'])])
 
     # The time band is always needed for interpolation
-    scene_coll = scene_coll \
-        .filterDate(interp_start_date, interp_end_date) \
-        .select(['et'] + ['mask', 'time']) \
+    scene_coll = (
+        scene_coll
+        .filterDate(interp_start_date, interp_end_date)
+        .select(['et'] + ['mask', 'time'])
         .map(normalize_et)
+    )
 
     # # Join the target (normalization) image to the scene images
     # if use_joins:
@@ -588,7 +621,8 @@ def from_scene_et_actual(scene_coll, start_date, end_date, variables,
     daily_coll = openet.core.interpolate.daily(
         target_coll=daily_target_coll.filterDate(start_date, end_date),
         source_coll=scene_coll.select(['et_norm', 'time']),
-        interp_method=interp_method, interp_days=interp_days,
+        interp_method=interp_method,
+        interp_days=interp_days,
         use_joins=use_joins,
         compute_product=True,
     )
@@ -633,14 +667,11 @@ def from_scene_et_actual(scene_coll, start_date, end_date, variables,
 
         """
         if 'et' in variables or 'et_fraction' in variables:
-            et_img = daily_coll.filterDate(agg_start_date, agg_end_date) \
-                .select(['et']).sum()
+            et_img = daily_coll.filterDate(agg_start_date, agg_end_date).select(['et']).sum()
         if 'et_reference' in variables or 'et_fraction' in variables:
             # Get the reference ET image from the reference ET collection,
             #   not the interpolated collection
-            et_reference_img = daily_et_ref_coll \
-                .filterDate(agg_start_date, agg_end_date) \
-                .sum()
+            et_reference_img = daily_et_ref_coll.filterDate(agg_start_date, agg_end_date).sum()
 
         image_list = []
         if 'et' in variables:
@@ -649,13 +680,10 @@ def from_scene_et_actual(scene_coll, start_date, end_date, variables,
             image_list.append(et_reference_img.float())
         if 'et_fraction' in variables:
             # Compute average et fraction over the aggregation period
-            image_list.append(
-                et_img.divide(et_reference_img)
-                    .rename(['et_fraction']).float())
+            image_list.append(et_img.divide(et_reference_img).rename(['et_fraction']).float())
         # if 'ndvi' in variables:
         #     # Compute average ndvi over the aggregation period
-        #     ndvi_img = daily_coll \
-        #         .filterDate(agg_start_date, agg_end_date) \
+        #     ndvi_img = daily_coll.filterDate(agg_start_date, agg_end_date) \
         #         .mean().select(['ndvi']).float()
         #     image_list.append(ndvi_img)
         if 'count' in variables:
@@ -666,8 +694,8 @@ def from_scene_et_actual(scene_coll, start_date, end_date, variables,
 
         return ee.Image(image_list) \
             .set({
-            'system:index': ee.Date(agg_start_date).format(date_format),
-            'system:time_start': ee.Date(agg_start_date).millis()})
+                'system:index': ee.Date(agg_start_date).format(date_format),
+                'system:time_start': ee.Date(agg_start_date).millis()})
         #     .set(interp_properties)\
 
     # Combine input, interpolated, and derived values
@@ -681,7 +709,8 @@ def from_scene_et_actual(scene_coll, start_date, end_date, variables,
             return aggregate_image(
                 agg_start_date=agg_start_date,
                 agg_end_date=ee.Date(agg_start_date).advance(1, 'day'),
-                date_format='YYYYMMdd')
+                date_format='YYYYMMdd',
+            )
 
         return ee.ImageCollection(daily_coll.map(agg_daily))
 
@@ -699,7 +728,8 @@ def from_scene_et_actual(scene_coll, start_date, end_date, variables,
             return aggregate_image(
                 agg_start_date=agg_start_date,
                 agg_end_date=ee.Date(agg_start_date).advance(1, 'month'),
-                date_format='YYYYMM')
+                date_format='YYYYMM',
+            )
 
         return ee.ImageCollection(month_list.map(agg_monthly))
 
@@ -716,12 +746,15 @@ def from_scene_et_actual(scene_coll, start_date, end_date, variables,
             return aggregate_image(
                 agg_start_date=agg_start_date,
                 agg_end_date=ee.Date(agg_start_date).advance(1, 'year'),
-                date_format='YYYY')
+                date_format='YYYY',
+            )
 
         return ee.ImageCollection(year_list.map(agg_annual))
 
     elif t_interval.lower() == 'custom':
         # Returning an ImageCollection to be consistent
         return ee.ImageCollection(aggregate_image(
-            agg_start_date=start_date, agg_end_date=end_date,
-            date_format='YYYYMMdd'))
+            agg_start_date=start_date,
+            agg_end_date=end_date,
+            date_format='YYYYMMdd',
+        ))

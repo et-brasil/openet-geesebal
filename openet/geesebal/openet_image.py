@@ -631,7 +631,6 @@ class Image():
     @lazy_property
     def mask(self,):
         """Mask of all active pixels (based on the final et)"""
-
         return (
             self.et.multiply(0).add(1).updateMask(1).uint8()
             .rename(['mask']).set(self._properties)
