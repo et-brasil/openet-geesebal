@@ -12,10 +12,7 @@ OpenET - geeSEBAL
 
 | Image Collections IDs  |
 |:----------------------:|
-| LANDSAT/LC08/C01/T1_SR |
-| LANDSAT/LE07/C01/T1_SR |
-| LANDSAT/LT05/C01/T1_SR |
-| LANDSAT/LT04/C01/T1_SR |
+| LANDSAT/LC09/C02/T1_L2 |
 | LANDSAT/LC08/C02/T1_L2 |
 | LANDSAT/LE07/C02/T1_L2 |
 | LANDSAT/LT05/C02/T1_L2 |
@@ -32,30 +29,9 @@ OpenET - geeSEBAL
 ## Model Design
 
 ###  Image()
+
 * Compute Daily ET or ET fraction for a single input image.
 * Allow to obtain ET image collections by mapping over  Landsat collections.
-* 
-------------
-
-#### Landsat Collection 1 SR Input Image
-
-* Select Image.from_landsat_c1_sr() method to instantiate the class for a Landsat Collection 1 SR image. Image must have the following bands and properties:
-
-|SPACECRAFT_ID       | Band Names                                 |
-| ------------------ |--------------------------------------------|
-| **LANDSAT_4**      | B1, B2, B3, B4, B5, B7, B6, pixel_qa       |
-| **LANDSAT_5**      | B1, B2, B3, B4, B5, B7, B6, pixel_qa       | 
-| **LANDSAT_7**      | B1, B2, B3, B4, B5, B7, B6, pixel_qa       | 
-| **LANDSAT_8**      | B1, B2, B3, B4, B5, B6, B7, B10, pixel_qa  | 
-
-| PROPERTIES                                                                         |
-|------------------------------------------------------------------------------------|
-| **system: index** - Landsat scene ID (ex: LC08_044033_20170801)                    |
-| **system: time_start** -  Time start of the image in epoch time                    |
-| **SPACECRAFT_ID** - Landsat Satellite (LANDSAT_4, LANDSAT_5, LANDSAT_7, LANDSAT_8) |
-| **SOLAR_ZENITH_ANGLE** -  Solar zenith angle in degrees                            |
-
-------------
 
 #### Landsat Collection 2 Input Image
 

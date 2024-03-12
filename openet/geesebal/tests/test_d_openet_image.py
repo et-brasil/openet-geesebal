@@ -349,35 +349,6 @@ def test_Image_calculate_variables_valueerror():
         utils.getinfo(default_image_obj().calculate(['FOO']))
 
 
-def test_Image_from_landsat_c1_sr_default_image():
-    """Test that the classmethod is returning a class object"""
-    output = geesebal.Image.from_landsat_c1_sr(
-        ee.Image('LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716'))
-    assert type(output) == type(default_image_obj())
-
-
-@pytest.mark.parametrize(
-    'image_id',
-    [
-        # 'LANDSAT/LT04/C01/T1_SR/LT04_044033_19830812',
-        'LANDSAT/LT05/C01/T1_SR/LT05_044033_20110716',
-        'LANDSAT/LE07/C01/T1_SR/LE07_044033_20170708',
-        'LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716',
-    ]
-)
-def test_Image_from_landsat_c1_sr_landsat_image(image_id):
-    """Test instantiating the class from a real Landsat images"""
-    output = utils.getinfo(geesebal.Image.from_landsat_c1_sr(ee.Image(image_id)).ndvi)
-    assert output['properties']['system:index'] == image_id.split('/')[-1]
-
-
-# CGM - I'm not sure why these don't raise exceptions
-# def test_Image_from_landsat_c1_sr_exception():
-#     """Test instantiating the class for an invalid image ID"""
-#     with pytest.raises(Exception):
-#         utils.getinfo(geesebal.Image.from_landsat_c1_sr(ee.Image('DEADBEEF'))._index)
-
-
 def test_Image_from_landsat_c2_sr_default_image():
     """Test that the classmethod is returning a class object"""
     output = geesebal.Image.from_landsat_c2_sr(

@@ -150,12 +150,6 @@ class Collection():
             'LANDSAT/LC08/C02/T1_L2',
             'LANDSAT/LC09/C02/T1_L2',
         ]
-        self._landsat_c1_sr_collections = [
-            'LANDSAT/LT04/C01/T1_SR',
-            'LANDSAT/LT05/C01/T1_SR',
-            'LANDSAT/LE07/C01/T1_SR',
-            'LANDSAT/LC08/C01/T1_SR',
-        ]
 
         # If collections is a string, place in a list
         if type(self.collections) is str:
@@ -163,8 +157,7 @@ class Collection():
 
         # Check that collection IDs are supported
         for coll_id in self.collections:
-            if (coll_id not in self._landsat_c1_sr_collections and
-                    coll_id not in self._landsat_c2_sr_collections):
+            if coll_id not in self._landsat_c2_sr_collections:
                 raise ValueError(f'unsupported collection: {coll_id}')
 
         # Check that collections don't have "duplicates"
@@ -326,52 +319,6 @@ class Collection():
 
                 variable_coll = variable_coll.merge(input_coll)
 
-            elif coll_id in self._landsat_c1_sr_collections:
-                input_coll = (
-                    ee.ImageCollection(coll_id)
-                    .filterDate(start_date, end_date)
-                    .filterBounds(self.geometry)
-                    .filterMetadata('CLOUD_COVER_LAND', 'less_than', self.cloud_cover_max)
-                )
-
-                # TODO: Need to come up with a system for applying
-                #   generic filter arguments to the collections
-                if coll_id in self.filter_args.keys():
-                    for f in copy.deepcopy(self.filter_args[coll_id]):
-                        try:
-                            filter_type = f.pop('type')
-                        except KeyError:
-                            continue
-                        if filter_type.lower() == 'equals':
-                            input_coll = input_coll.filter(ee.Filter.equals(**f))
-
-                # Time filters are to remove bad (L5) and pre-op (L8) images
-                if 'LT05' in coll_id:
-                    input_coll = input_coll.filter(ee.Filter.lt(
-                        'system:time_start', ee.Date('2011-12-31').millis()
-                    ))
-                elif 'LE07' in coll_id:
-                    input_coll = input_coll.filter(ee.Filter.lt(
-                        'system:time_start', ee.Date('2022-01-01').millis()
-                    ))
-                elif 'LC08' in coll_id:
-                    input_coll = input_coll.filter(ee.Filter.gt(
-                        'system:time_start', ee.Date('2013-04-01').millis()
-                    ))
-
-                def compute_vars(image):
-                    model_obj = Image.from_landsat_c1_sr(
-                        sr_image=ee.Image(image), **self.model_args
-                    )
-                    return model_obj.calculate(variables)
-
-                # Skip going into image class if variables is not set so raw
-                #   landsat collection can be returned for getting image_id_list
-                if variables:
-                    input_coll = ee.ImageCollection(input_coll.map(compute_vars))
-
-                variable_coll = variable_coll.merge(input_coll)
-
             else:
                 raise ValueError(f'unsupported collection: {coll_id}')
 
@@ -411,7 +358,7 @@ class Collection():
             t_interval='custom',
             interp_method='linear',
             interp_days=32,
-            use_joins=False,
+            use_joins=True,
             **kwargs
             ):
         """
