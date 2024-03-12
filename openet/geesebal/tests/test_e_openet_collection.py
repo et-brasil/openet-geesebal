@@ -1,4 +1,4 @@
-import pprint
+# import pprint
 
 import ee
 import pytest
@@ -7,7 +7,6 @@ import openet.geesebal as geesebal
 import openet.geesebal.utils as utils
 # TODO: import utils from openet.core
 # import openet.core.utils as utils
-
 
 # C01_COLLECTIONS = ['LANDSAT/LC08/C01/T1_SR', 'LANDSAT/LE07/C01/T1_SR']
 C02_COLLECTIONS = ['LANDSAT/LC08/C02/T1_L2', 'LANDSAT/LE07/C02/T1_L2']
@@ -23,27 +22,6 @@ VARIABLES = {'et', 'et_fraction'}
 # VARIABLES = {'et', 'et_fraction', 'et_reference}
 TEST_POINT = (-121.5265, 38.7399)
 
-
-default_coll_args = {
-    'collections': C02_COLLECTIONS,
-    'geometry': ee.Geometry.Point(SCENE_POINT),
-    'start_date': START_DATE,
-    'end_date': END_DATE,
-    'variables': list(VARIABLES),
-    'cloud_cover_max': 70,
-    'model_args': {
-        'et_reference_source': 'IDAHO_EPSCOR/GRIDMET',
-        'et_reference_band': 'eto',
-        'et_reference_factor': 0.85,
-        'et_reference_resample': 'nearest',
-        # CGM - Dropping number of calibrations points and iterations for testing
-        #   to avoid memory errors and timeouts
-        'calibration_points': 1,
-        'max_iterations': 4,
-    },
-    'filter_args': {},
-    # 'interp_args': {},
-}
 interp_args = {
     'interp_source': 'IDAHO_EPSCOR/GRIDMET',
     'interp_band': 'eto',
@@ -51,8 +29,33 @@ interp_args = {
     # 'interp_factor': 0.85,
 }
 
+
+def default_coll_args():
+    return {
+        'collections': C02_COLLECTIONS,
+        'geometry': ee.Geometry.Point(SCENE_POINT),
+        'start_date': START_DATE,
+        'end_date': END_DATE,
+        'variables': list(VARIABLES),
+        'cloud_cover_max': 70,
+        'model_args': {
+            'et_reference_source': 'IDAHO_EPSCOR/GRIDMET',
+            'et_reference_band': 'eto',
+            'et_reference_factor': 0.85,
+            'et_reference_resample': 'nearest',
+            # CGM - Dropping number of calibrations points and iterations for testing
+            #   to avoid memory errors and timeouts
+            'calibration_points': 1,
+            'max_iterations': 4,
+            'cloudmask_args': {'cloud_score_flag': False, 'filter_flag': False},
+        },
+        'filter_args': {},
+        # 'interp_args': {},
+    }
+
+
 def default_coll_obj(**kwargs):
-    args = default_coll_args.copy()
+    args = default_coll_args().copy()
     args.update(kwargs)
     return geesebal.Collection(**args)
 
@@ -65,7 +68,7 @@ def parse_scene_id(output_info):
 
 def test_Collection_init_default_parameters():
     """Test if init sets default parameters"""
-    args = default_coll_args.copy()
+    args = default_coll_args().copy()
     del args['variables']
     del args['model_args']
     # del args['interp_args']
