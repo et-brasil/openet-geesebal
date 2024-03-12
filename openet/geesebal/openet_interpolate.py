@@ -1,7 +1,7 @@
 import datetime
 import logging
 
-from dateutil.relativedelta import *
+from dateutil.relativedelta import relativedelta
 import ee
 import openet.core.interpolate
 # TODO: import utils from openet.core

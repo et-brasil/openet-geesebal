@@ -1,2 +1,0 @@
-earthengine-api>=0.1.232
-openet-core>=0.0.22

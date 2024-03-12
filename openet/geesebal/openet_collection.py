@@ -1,17 +1,18 @@
 import copy
 import datetime
-import pprint
+from importlib import metadata
+# import pprint
 
-from dateutil.relativedelta import *
+from dateutil.relativedelta import relativedelta
 import ee
 import openet.core.interpolate as interpolate
 # TODO: import utils from openet.core
 # import openet.core.utils as utils
 
-from openet.geesebal import utils
-from openet.geesebal.openet_image import Image
-# Importing to get version number, is there a better way?
-import openet.geesebal
+from . import utils
+from .openet_image import Image
+# from openet.geesebal import utils
+# from openet.geesebal.openet_image import Image
 
 
 def lazy_property(fn):
@@ -711,11 +712,10 @@ class Collection():
             'collections': ', '.join(self.collections),
             'interp_days': interp_days,
             'interp_method': interp_method,
-            # TODO: Switch when we change from setup.py to pyproject.toml
-            # 'model_name': metadata.metadata('openet-ptjpl')['Name'],
-            # 'model_version': metadata.metadata('openet-ptjpl')['Version'],
-            'model_name': openet.geesebal.MODEL_NAME,
-            'model_version': openet.geesebal.__version__,
+            'model_name': metadata.metadata('openet-geesebal')['Name'],
+            'model_version': metadata.metadata('openet-geesebal')['Version'],
+            # 'model_name': openet.geesebal.MODEL_NAME,
+            # 'model_version': openet.geesebal.__version__,
         }
         interp_properties.update(self.model_args)
 

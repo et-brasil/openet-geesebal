@@ -447,7 +447,6 @@ class Image():
 
         if c2_lst_correct:
             lst = openet.core.common.landsat_c2_sr_lst_correct(sr_image, landsat.ndvi(prep_image))
-
         else:
             lst = prep_image.select(['lst'])
 
