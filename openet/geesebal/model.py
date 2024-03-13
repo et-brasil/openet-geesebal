@@ -113,12 +113,6 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
             time_start, lst, elev, tair_dem, rh, sun_elevation, hour, minutes, coords
         )
 
-        # Cold pixel for wet conditions repretation of the image
-        fc_cold_pixels = cold_pixel(
-            albedo, ndvi, ndwi, lst_dem, p_top_NDVI, p_coldest_Ts,
-            geometry_image, coords, proj, elev, calibration_points,
-        )
-
         # Instantaneous net radiation using reanalysis dataset
         rad_inst = radiation_inst(
             elev, lst, emissivity, albedo, tair, rh, rso_inst, sun_elevation, cos_zn
@@ -130,18 +124,38 @@ def et(image, ndvi, ndwi, lst, albedo, emissivity, savi,
         # Daily ney radiation (rn)
         rad_24h = radiation_24h(time_start, tmax, tmin, elev, sun_elevation, cos_zn, rso24h)
 
+        # Cold pixel for wet conditions repretation of the image
+        fc_cold_pixels = cold_pixel(
+            albedo, ndvi, ndwi, lst_dem, p_top_NDVI, p_coldest_Ts,
+            geometry_image, coords, proj, elev, calibration_points,
+        )
+
         # Hot pixel
         fc_hot_pixels = fexp_hot_pixel(
             time_start, albedo, ndvi, ndwi, lst_dem, rad_inst, g_inst,
             p_lowest_NDVI, p_hottest_Ts, geometry_image, coords, proj, elev,
             calibration_points,
         )
+        # print(fc_cold_pixels.getInfo())
+        # print(fc_hot_pixels.getInfo())
 
         # Instantaneous sensible heat flux (h)
-        h_inst = sensible_heat_flux(
-            savi, ux, fc_cold_pixels, fc_hot_pixels, lst_dem, lst, elev, geometry_image,
-            max_iterations,
+        # BCCA - added conditional in case no endmembers are found
+        h_inst = ee.Image(
+            ee.Algorithms.If(
+                ee.Number(fc_cold_pixels.size()).eq(0).Or(ee.Number(fc_hot_pixels.size()).eq(0)),
+                ee.Image.constant(0).updateMask(0).rename('h_inst'),
+                sensible_heat_flux(
+                    savi, ux, fc_cold_pixels, fc_hot_pixels, lst_dem, lst, elev, geometry_image,
+                    max_iterations,
+                )
+            )
         )
+
+        # h_inst = sensible_heat_flux(
+        #     savi, ux, fc_cold_pixels, fc_hot_pixels, lst_dem, lst, elev, geometry_image,
+        #     max_iterations,
+        # )
 
         # Daily evapotranspiration (et)
         et_24hr = daily_et(h_inst, g_inst, rad_inst, lst_dem, rad_24h)
@@ -628,7 +642,7 @@ def homogeneous_mask(ndvi, proj):
 def cold_pixel(
         albedo, ndvi, ndwi, lst_dem, ndvi_cold, lst_cold, geometry_image, coords, proj, dem,
         calibration_points=10,
-        ):
+):
     """
     Simplified CIMEC method to select the cold pixel
 
@@ -674,16 +688,20 @@ def cold_pixel(
         JAWRA J. Am. Water Resour. Assoc. 49, 563–576.
 
     """
-    # Pre-filter
-    # BCCA: changed pos_ndvi from gt(0) to gte(0.7) and added albedo filter
-    pos_ndvi = ndvi.updateMask(ndvi.gte(0.7)).rename('post_ndvi')
 
-    pos_ndvi = pos_ndvi.updateMask(albedo.lte(0.23))
+    pos_ndvi = ndvi.updateMask(ndvi.gte(0)).rename('post_ndvi')
 
-    # BCCA: added texture threshold to avoid mountaineous areas
-    texture = dem.glcmTexture(3).select('elevation_contrast').focalMax(3, 'circle')
+    # BCCA - removed prefilters to increase the number of scenes able to be run
+    # # Pre-filter
+    # # BCCA: changed pos_ndvi from gt(0) to gte(0.7) and added albedo filter
+    # pos_ndvi = ndvi.updateMask(ndvi.gte(0.7)).rename('post_ndvi')
 
-    pos_ndvi = pos_ndvi.updateMask(texture.lte(10))
+    # pos_ndvi = pos_ndvi.updateMask(albedo.lte(0.23))
+
+    # # BCCA: added texture threshold to avoid mountaineous areas
+    # texture = dem.glcmTexture(3).select('elevation_contrast').focalMax(3, 'circle')
+
+    # pos_ndvi = pos_ndvi.updateMask(texture.lte(10))
 
     ndvi_neg = pos_ndvi.multiply(-1).rename('ndvi_neg')
 
@@ -807,7 +825,7 @@ def cold_pixel(
 
 def radiation_inst(
         dem, lst, emissivity, albedo, tair, rh, swdown_inst, sun_elevation, cos_terrain
-        ):
+):
     """
     Instantaneous Net Radiation [W m-2]
 
@@ -1006,7 +1024,7 @@ def radiation_24h(time_start, tmax, tmin, elev, sun_elevation, cos_terrain, rso2
 def fexp_hot_pixel(
         time_start, albedo, ndvi, ndwi, lst_dem, rn, g, ndvi_hot, lst_hot,
         geometry_image, coords, proj, dem, calibration_points=10,
-        ):
+):
     """
     Simplified CIMEC method to select the hot pixel
 
@@ -1058,16 +1076,20 @@ def fexp_hot_pixel(
     ..
     """
 
-    # Pre-filter
-    # BCCA: restricted ndvi values and added albedo filter
-    pos_ndvi = ndvi.updateMask(ndvi.gt(0)).updateMask(ndvi.lte(0.3)).rename('post_ndvi')
+    pos_ndvi = ndvi.updateMask(ndvi.gt(0)).rename('post_ndvi')
 
-    pos_ndvi = pos_ndvi.updateMask(albedo.gte(0.15)).updateMask(albedo.lte(0.35))
+    # BCCA -  commented prefilters to increase the number of images able to be run
 
-    # BCCA: added texture threshold to avoid mountaineous areas
-    texture = dem.glcmTexture(3).select('elevation_contrast').focalMax(3, 'circle')
+    # # Pre-filter
+    # # BCCA - restricted ndvi values and added albedo filter
+    # pos_ndvi = ndvi.updateMask(ndvi.gt(0)).updateMask(ndvi.lte(0.3)).rename('post_ndvi')
 
-    pos_ndvi = pos_ndvi.updateMask(texture.lte(10))
+    # pos_ndvi = pos_ndvi.updateMask(albedo.gte(0.15)).updateMask(albedo.lte(0.35))
+
+    # # BCCA - added texture threshold to avoid mountaineous areas
+    # texture = dem.glcmTexture(3).select('elevation_contrast').focalMax(3, 'circle')
+
+    # pos_ndvi = pos_ndvi.updateMask(texture.lte(10))
 
     ndvi_neg = pos_ndvi.multiply(-1).rename('ndvi_neg')
 
@@ -1198,7 +1220,7 @@ def sensible_heat_flux(
         dem,
         geometry_image,
         max_iterations=15,
-        ):
+):
     """
     Instantaneous Sensible Heat Flux [W m-2]
 
