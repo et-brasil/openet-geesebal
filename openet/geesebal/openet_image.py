@@ -86,7 +86,7 @@ class Image():
                 Reference ET resampling.  The default is None which is
                 equivalent to nearest neighbor resampling.
             calibration_points : int
-                Number of calibration points (the default is 10).
+                Number of calibration points (the default is 6).
             max_iterations : int
                 Maximum number of iterations (the default is 15).
 
@@ -179,7 +179,7 @@ class Image():
         try:
             self.calibration_points = kwargs['calibration_points']
         except:
-            self.calibration_points = 10
+            self.calibration_points = 6
 
         try:
             self.max_iterations = kwargs['max_iterations']

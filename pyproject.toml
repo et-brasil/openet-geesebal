@@ -23,9 +23,9 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "earthengine-api>=0.1.367",
-    "openet-core>=0.4.1",
-    # "openet-refet-gee>=0.2.0",
+    "earthengine-api >= 0.1.367",
+    "openet-core >= 0.4.0",
+    # "openet-refet-gee >= 0.2.0",
     # "python-dateutil",
 ]
 
