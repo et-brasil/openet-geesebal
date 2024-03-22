@@ -1,11 +1,11 @@
 OpenET - geeSEBAL
 =================
 
-<img src="https://github.com/et-brasil/EESEBAL/blob/master/Images/geeSEBAL_logo_update_cut.png?raw=true" width="140">
+<img src="https://github.com/et-brasil/geeSEBAL/blob/master/Images/geeSEBAL_logo_update_cut.png?raw=true" width="140">
 
 ## Estimating Evapotranspiration using SEBAL model in Google Earth Engine platform.
 
-* The Google Earth Engine Surface Energy Balance for Land (geeSEBAL) solves the energy balance equation (LE+H = Rn - G) to estimate Daily Evapotranspiration (ET) by using Landsat images (L4, L5, L7, L8, and L9) and meteorological data (air temperature, relative humidity, global radiation and wind speed).
+* The Google Earth Engine Surface Energy Balance for Land (geeSEBAL) solves the energy balance equation (LE + H = Rn - G) to estimate Daily Evapotranspiration (ET) by using Landsat images (L4, L5, L7, L8, and L9) and meteorological data (air temperature, relative humidity, global radiation and wind speed).
 
 ## Input Collections
 * The following Earth Engine image collection are use in geeSEBAL :
@@ -37,20 +37,20 @@ OpenET - geeSEBAL
 
 * Select Image.from_landsat_c2_sr() method to instantiate the class for a Landsat Collection 2 SR image. Image must have the following bands and properties:
 
-| SPACECRAFT_ID    | Band Names                                                         |
-|------------------|--------------------------------------------------------------------|
-| **LANDSAT_4**    | SR_B1, SR_B2, SR_B3, SR_B4, SR_B5, SR_B7, ST_B6, QA_PIXEL          |           
-| **LANDSAT_5**    | SR_B1, SR_B2, SR_B3, SR_B4, SR_B5, SR_B7, ST_B6, QA_PIXEL          | 
-| **LANDSAT_7**    | SR_B1, SR_B2, SR_B3, SR_B4, SR_B5, SR_B7, ST_B6, QA_PIXEL          | 
-| **LANDSAT_8**    | SR_B1, SR_B2, SR_B3, SR_B4, SR_B5, SR_B6, SR_B7, ST_B10, QA_PIXEL  | 
+| SPACECRAFT_ID | Band Names                                                         |
+|---------------|--------------------------------------------------------------------|
+| **LANDSAT_4** | SR_B1, SR_B2, SR_B3, SR_B4, SR_B5, SR_B7, ST_B6, QA_PIXEL          |           
+| **LANDSAT_5** | SR_B1, SR_B2, SR_B3, SR_B4, SR_B5, SR_B7, ST_B6, QA_PIXEL          | 
+| **LANDSAT_7** | SR_B1, SR_B2, SR_B3, SR_B4, SR_B5, SR_B7, ST_B6, QA_PIXEL          | 
+| **LANDSAT_8** | SR_B1, SR_B2, SR_B3, SR_B4, SR_B5, SR_B6, SR_B7, ST_B10, QA_PIXEL  | 
+| **LANDSAT_9** | SR_B1, SR_B2, SR_B3, SR_B4, SR_B5, SR_B6, SR_B7, ST_B10, QA_PIXEL  | 
 
-
-| PROPERTIES                                                                         |
-|------------------------------------------------------------------------------------|
-| **system: index** - Landsat scene ID (ex: LC08_044033_20170801)                    |
-| **system: time_start** -  Time start of the image in epoch time                    |
-| **SPACECRAFT_ID** - Landsat Satellite (LANDSAT_4, LANDSAT_5, LANDSAT_7, LANDSAT_8) |
-| **SUN_ELEVATION** -  Solar elevation angle in degrees                              |
+| PROPERTIES                                                                                    |
+|-----------------------------------------------------------------------------------------------|
+| **system: index** - Landsat scene ID (ex: LC08_044033_20170801)                               |
+| **system: time_start** -  Time start of the image in epoch time                               |
+| **SPACECRAFT_ID** - Landsat Satellite (LANDSAT_4, LANDSAT_5, LANDSAT_7, LANDSAT_8, LANDSAT_9) |
+| **SUN_ELEVATION** -  Solar elevation angle in degrees                                         |
 
 ## Model Output
 
@@ -59,8 +59,8 @@ The general outputs of the geeSEBAL are ndvi (normalized difference vegetation i
 ### Example
 	import openet.geesebal as geesebal
 	
-	ls_img = ee.Image('LANDSAT/LC08/C01/T1_SR/LC08_044033_20170801')
-	model_obj = geesebal.from_landsat_c1_sr(ls_img)
+	ls_img = ee.Image('LANDSAT/LC08/C02/T1_L2/LC08_044033_20170801')
+	model_obj = geesebal.from_landsat_c2_sr(ls_img)
 
 	ndvi = model_obj.ndvi
 	lst = model_obj.lst
