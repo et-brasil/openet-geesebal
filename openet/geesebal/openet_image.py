@@ -61,7 +61,7 @@ class Image():
             Collection supported:
                 IDAHO_EPSCOR/GRIDMET
             Meteorology collection must have bands:
-                tmin,tmax, rso24h
+                tmmn, tmmx, srad
         elev_source : str, optional
             Elevation source image ID.
         ndvi_cold : int, ee.Number, optional
@@ -93,6 +93,7 @@ class Image():
         Notes
         -----
         Standard percentiles are from Allen et al. (2013)
+
         """
 
         self.image = image
