@@ -13,9 +13,9 @@ def getinfo(ee_obj, n=4):
         try:
             output = ee_obj.getInfo()
         except ee.ee_exception.EEException as e:
-            logging.info(f'    Resending query ({i}/10)')
+            logging.info(f'    Resending query ({i}/{n})')
             logging.debug(f'    {e}')
-            sleep(i ** 2)
+            sleep(i ** 3)
             # if ('Earth Engine memory capacity exceeded' in str(e) or
             #         'Earth Engine capacity exceeded' in str(e)):
             #     logging.info(f'    Resending query ({i}/10)')
@@ -23,6 +23,9 @@ def getinfo(ee_obj, n=4):
             #     sleep(i ** 2)
             # else:
             #     raise e
+        except Exception as e:
+            logging.info(e)
+            break
 
         if output:
             break
@@ -58,32 +61,33 @@ def date_to_time_0utc(date):
     ee.Number
     """
 
-    return ee.Date.fromYMD(date.get('year'), date.get('month'),
-                           date.get('day')).millis()
+    return ee.Date.fromYMD(date.get('year'), date.get('month'), date.get('day')).millis()
     # Extra operations are needed since update() does not set milliseconds to 0.
     # return date.update(hour=0, minute=0, second=0).millis()\
     #     .divide(1000).floor().multiply(1000)
 
 
-# TODO: Import from common.utils
+# TODO: Import from openet.core.utils instead of defining here
 # Should these be test fixtures instead?
 # I'm not sure how to make them fixtures and allow input parameters
 def constant_image_value(image, crs='EPSG:32613', scale=1):
     """Extract the output value from a calculation done with constant images"""
-    return ee.Image(image).rename(['output']) \
-        .reduceRegion(
-            reducer=ee.Reducer.first(), scale=scale,
-            geometry=ee.Geometry.Rectangle([0, 0, 10, 10], crs, False)) \
-        .getInfo()['output']
+    rr_params = {
+        'reducer': ee.Reducer.first(),
+        'geometry': ee.Geometry.Rectangle([0, 0, 10, 10], crs, False),
+        'scale': scale,
+    }
+    return getinfo(ee.Image(image).reduceRegion(**rr_params))
 
 
 def point_image_value(image, xy, scale=1):
     """Extract the output value from a calculation at a point"""
-    return ee.Image(image).rename(['output']) \
-        .reduceRegion(
-            reducer=ee.Reducer.first(), geometry=ee.Geometry.Point(xy),
-            scale=scale) \
-        .getInfo()['output']
+    rr_params = {
+        'reducer': ee.Reducer.first(),
+        'geometry': ee.Geometry.Point(xy),
+        'scale': scale,
+    }
+    return getinfo(ee.Image(image).reduceRegion(**rr_params))
 
 
 def point_coll_value(coll, xy, scale=1):
@@ -98,8 +102,7 @@ def point_coll_value(coll, xy, scale=1):
         col_dict[k] = i + 4
         info_dict[k] = {}
     for row in output[1:]:
-        date = datetime.datetime.utcfromtimestamp(row[3] / 1000.0).strftime(
-            '%Y-%m-%d')
+        date = datetime.datetime.utcfromtimestamp(row[3] / 1000.0).strftime('%Y-%m-%d')
         for k, v in col_dict.items():
             info_dict[k][date] = row[col_dict[k]]
 

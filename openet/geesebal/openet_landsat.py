@@ -50,7 +50,6 @@ def fipar(landsat_image):
     """
     ndvi_clamp = ndvi(landsat_image).clamp(0.0, 1.0)
 
-
     return ndvi_clamp.multiply(1).subtract(0.05).clamp(0.0, 1.0)\
         .rename('fipar')
 
@@ -74,9 +73,9 @@ def lai(landsat_image):
 
     """
     return ee.Image(landsat_image).expression('-log(1 - fIPAR) / (KPAR)', {
-            'fIPAR': fipar(ee.Image(landsat_image)),
-            'KPAR': ee.Number(0.5)
-        }).rename('lai')
+        'fIPAR': fipar(ee.Image(landsat_image)),
+        'KPAR': ee.Number(0.5)
+    }).rename('lai')
 
 
 def ndwi(landsat_image):
@@ -97,6 +96,18 @@ def ndwi(landsat_image):
     """
     return ee.Image(landsat_image).normalizedDifference(['green', 'nir'])\
         .rename('ndwi').unmask(0)
+
+
+def landsat_c2_qa_water_mask(landsat_image):
+    """
+    Extract water mask from the Landsat Collection 2 SR QA_PIXEL band.
+    :return: ee.Image
+    """
+
+    img = ee.Image(landsat_image)
+    qa_img = img.select(['QA_PIXEL'])
+    water_mask = qa_img.rightShift(7).bitwiseAnd(1).neq(0)
+    return water_mask.rename(['qa_water'])
 
 
 def emissivity(landsat_image):
@@ -206,12 +217,12 @@ def albedo_l457(landsat_image):
     albedo = landsat_image.expression(
         '(0.254 * B1) + (0.149 * B2) + (0.147 * B3) + (0.311 * B4) + '
         '(0.103 * B5) + (0.036 * B7)', {
-            'B1' : landsat_image.select(['blue']),
-            'B2' : landsat_image.select(['green']),
-            'B3' : landsat_image.select(['red']),
-            'B4' : landsat_image.select(['nir']),
-            'B5' : landsat_image.select(['swir1']),
-            'B7' : landsat_image.select(['swir2']),
+            'B1': landsat_image.select(['blue']),
+            'B2': landsat_image.select(['green']),
+            'B3': landsat_image.select(['red']),
+            'B4': landsat_image.select(['nir']),
+            'B5': landsat_image.select(['swir1']),
+            'B7': landsat_image.select(['swir2']),
         }).rename('albedo')
 
     return albedo
@@ -242,13 +253,13 @@ def albedo_l89(landsat_image):
     albedo = landsat_image.expression(
         '(0.130 * B1) + (0.115 * B2) + (0.143 * B3) + (0.180 * B4) + '
         '(0.281 * B5) + (0.108 * B6) + (0.042 * B7)', {
-            'B1' : landsat_image.select(['ultra_blue']),
-            'B2' : landsat_image.select(['blue']),
-            'B3' : landsat_image.select(['green']),
-            'B4' : landsat_image.select(['red']),
-            'B5' : landsat_image.select(['nir']),
-            'B6' : landsat_image.select(['swir1']),
-            'B7' : landsat_image.select(['swir2']),
+            'B1': landsat_image.select(['ultra_blue']),
+            'B2': landsat_image.select(['blue']),
+            'B3': landsat_image.select(['green']),
+            'B4': landsat_image.select(['red']),
+            'B5': landsat_image.select(['nir']),
+            'B6': landsat_image.select(['swir1']),
+            'B7': landsat_image.select(['swir2']),
         }).rename('albedo')
 
     # # CGM - Just curious if the sum reducer would work
@@ -314,7 +325,7 @@ def cloud_mask_sr_l8(landsat_image):
     quality = landsat_image.select('pixel_qa')
     c01 = quality.eq(322)
     c02 = quality.eq(324)
-    c03 = quality.eq(1346) #       (10101000010)
+    c03 = quality.eq(1346)  # (10101000010)
     mask = c01.Or(c02).Or(c03)
 
     return mask

@@ -1,0 +1,48 @@
+[project]
+name = "openet-geesebal"
+version = "0.3.1"
+authors = [
+    { name = "Anderson Ruhoff", email = "andersonruhoff@gmail.com" },
+    { name = "Leonardo Laipelt", email = "leolaipelt@gmail.com" },
+    { name = "Bruno Comini", email = "cominideandrade@gmail.com" },
+]
+# maintainers = [
+#     { name = "Leonardo Laipelt", email = "leolaipelt@gmail.com" },
+#     { name = "Bruno Comini", email = "cominideandrade@gmail.com" },
+#     { name = "Charles Morton", email = "charles.g.mortone@gmail.com" },
+# ]
+description = "Earth Engine implementation of the GEESEBAL model"
+readme = "README.md"
+requires-python = ">=3.8"
+keywords = ["GEESEBAL", "OpenET", "Earth Engine", "Evapotranspiration", "Landsat"]
+license = {file = "LICENSE"}
+# license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "earthengine-api >= 0.1.367",
+    "openet-core >= 0.4.0",
+    # "openet-refet-gee >= 0.2.0",
+    # "python-dateutil",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/et-brasil/openet-geesebal"
+# "Repository" = "https://github.com/et-brasil/openet-geesebal.git"
+# "Documentation" = "https://github.com/et-brasil/openet-geesebal"
+# "Bug Tracker" = "https://github.com/et-brasil/openet-geesebal"
+# "Changelog" = "https://github.com/et-brasil/openet-geesebal"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.setuptools.packages.find]
+# include = ["openet*"]
+exclude = ["examples*"]
