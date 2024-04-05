@@ -25,3 +25,4 @@ dist/
 # Miscellaneous
 *.DS_Store
 examples/single_image.ipynb
+*.ipynb
