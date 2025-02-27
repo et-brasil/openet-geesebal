@@ -239,10 +239,14 @@ def test_Image_et_reference_properties():
     [
         ['IDAHO_EPSCOR/GRIDMET', 'etr', 1, TEST_POINT, 11.2],
         ['IDAHO_EPSCOR/GRIDMET', 'etr', 0.85, TEST_POINT, 11.2 * 0.85],
-        ['projects/openet/assets/reference_et/conus/gridmet/daily/v1',
-         'eto', 1, TEST_POINT, 10.174],
-        ['projects/openet/assets/reference_et/california/cimis/daily/v1',
-         'eto', 1, TEST_POINT, 10.174],
+        ['IDAHO_EPSCOR/GRIDMET', 'eto', 1, TEST_POINT, 8.3],
+        [
+            'projects/openet/assets/reference_et/conus/gridmet/daily/v1',
+            'eto', 1, TEST_POINT, 7.219],
+        [
+            'projects/openet/assets/reference_et/california/cimis/daily/v1',
+            'eto', 1, TEST_POINT, 7.761
+        ],
         [10, 'FOO', 1, TEST_POINT, 10.0],
         [10, 'FOO', 0.85, TEST_POINT, 8.5],
     ]
